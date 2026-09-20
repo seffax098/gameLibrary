@@ -53,8 +53,8 @@ def add_game(
             f"Год выпуска должен быть от {FIRST_GAME_YEAR} "
             f"до {current_year}."
         )
-    if hours_total <= 0:
-        raise ValueError("Время прохождения должно быть больше нуля.")
+    if hours_total < 0:
+        raise ValueError("Время прохождения не должно быть отрицательным.")
     if not 0 <= rating <= MAX_RATING:
         raise ValueError(f"Оценка должна быть от 0 до {MAX_RATING}.")
 
