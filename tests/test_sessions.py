@@ -15,12 +15,12 @@ from sessions import (
 )
 
 
-def test_is_day_free():
+def test_is_day_free() -> None:
     sessions: list[dict] = []
     assert is_day_free(sessions, 1, date(2026, 9, 15))
 
 
-def test_duplicate_session_forbidden():
+def test_duplicate_session_forbidden() -> None:
     sessions: list[dict] = []
     log_session(sessions, 1, date(2026, 9, 15), 2.5)
     assert not is_day_free(sessions, 1, date(2026, 9, 15))
@@ -28,7 +28,7 @@ def test_duplicate_session_forbidden():
         log_session(sessions, 1, date(2026, 9, 15), 1.0)
 
 
-def test_hours_played_sums_only_one_game():
+def test_hours_played_sums_only_one_game() -> None:
     sessions: list[dict] = []
     log_session(sessions, 1, date(2026, 9, 15), 2.0)
     log_session(sessions, 1, date(2026, 9, 16), 3.0)
@@ -36,7 +36,7 @@ def test_hours_played_sums_only_one_game():
     assert hours_played(sessions, 1) == 5.0
 
 
-def test_cancel_session():
+def test_cancel_session() -> None:
     sessions: list[dict] = []
     session = log_session(sessions, 1, date(2026, 9, 15), 2.0)
     cancel_session(sessions, session["id"])
@@ -45,17 +45,17 @@ def test_cancel_session():
         cancel_session(sessions, session["id"])
 
 
-def test_calculate_progress_is_limited_by_hundred():
+def test_calculate_progress_is_limited_by_hundred() -> None:
     assert calculate_progress(5.0, 10.0) == 50.0
     assert calculate_progress(20.0, 10.0) == 100.0
 
 
-def test_get_status():
+def test_get_status() -> None:
     assert get_status(0.0, 0.0) == "Не начата"
     assert get_status(5.0, 50.0) == "В процессе"
     assert get_status(10.0, 100.0) == "Пройдена"
 
 
-def test_make_progress_bar():
+def test_make_progress_bar() -> None:
     assert make_progress_bar(0.0) == "-" * 10
     assert make_progress_bar(100.0) == "#" * 10

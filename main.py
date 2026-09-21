@@ -154,7 +154,8 @@ def show_functions_help() -> None:
     )
     for module in modules:
         print_title(f"Модуль {module.__name__}.py")
-        print(inspect.getdoc(module).splitlines()[0])
+        module_doc = inspect.getdoc(module) or "нет описания"
+        print(module_doc.splitlines()[0])
         functions = inspect.getmembers(module, inspect.isfunction)
         for name, function in functions:
             if function.__module__ != module.__name__:
