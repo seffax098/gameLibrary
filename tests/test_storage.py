@@ -16,7 +16,7 @@ from storage import (
 )
 
 
-def test_games_survive_save_and_load(tmp_path):
+def test_games_survive_save_and_load(tmp_path) -> None:
     filename = os.path.join(tmp_path, "games.json")
     games: dict[int, dict] = {}
     add_game(games, "Celeste", "Платформер", "PC", 2018, 12.0, 9)
@@ -24,7 +24,7 @@ def test_games_survive_save_and_load(tmp_path):
     assert load_games(filename) == games
 
 
-def test_sessions_survive_save_and_load(tmp_path):
+def test_sessions_survive_save_and_load(tmp_path) -> None:
     filename = os.path.join(tmp_path, "sessions.json")
     sessions: list[dict] = []
     log_session(sessions, 1, date(2026, 9, 15), 2.5)
@@ -32,12 +32,12 @@ def test_sessions_survive_save_and_load(tmp_path):
     assert load_sessions(filename) == sessions
 
 
-def test_missing_file_gives_empty_library(tmp_path):
+def test_missing_file_gives_empty_library(tmp_path) -> None:
     filename = os.path.join(tmp_path, "нет-такого-файла.json")
     assert load_games(filename) == {}
 
 
-def test_broken_json_raises_value_error(tmp_path):
+def test_broken_json_raises_value_error(tmp_path) -> None:
     filename = os.path.join(tmp_path, "games.json")
     with open(filename, "w", encoding="utf-8") as file:
         file.write("{не json")
@@ -45,7 +45,7 @@ def test_broken_json_raises_value_error(tmp_path):
         load_games(filename)
 
 
-def test_library_stats():
+def test_library_stats() -> None:
     games: dict[int, dict] = {}
     game_id = add_game(games, "Celeste", "Платформер", "PC", 2018, 12.0, 8)
     sessions: list[dict] = []
