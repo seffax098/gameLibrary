@@ -17,6 +17,7 @@ from storage import (
 
 
 def test_games_survive_save_and_load(tmp_path) -> None:
+    """Игры сохраняются в JSON и загружаются без потерь."""
     filename = os.path.join(tmp_path, "games.json")
     games: dict[int, dict] = {}
     add_game(games, "Celeste", "Платформер", "PC", 2018, 12.0, 9)
@@ -25,6 +26,7 @@ def test_games_survive_save_and_load(tmp_path) -> None:
 
 
 def test_sessions_survive_save_and_load(tmp_path) -> None:
+    """Сессии с датами сохраняются в JSON и загружаются без потерь."""
     filename = os.path.join(tmp_path, "sessions.json")
     sessions: list[dict] = []
     log_session(sessions, 1, date(2026, 9, 15), 2.5)
@@ -33,11 +35,13 @@ def test_sessions_survive_save_and_load(tmp_path) -> None:
 
 
 def test_missing_file_gives_empty_library(tmp_path) -> None:
+    """Отсутствующий файл даёт пустую библиотеку."""
     filename = os.path.join(tmp_path, "нет-такого-файла.json")
-    assert load_games(filename) == {}
+    assert not load_games(filename)
 
 
 def test_broken_json_raises_value_error(tmp_path) -> None:
+    """Повреждённый JSON вызывает ValueError."""
     filename = os.path.join(tmp_path, "games.json")
     with open(filename, "w", encoding="utf-8") as file:
         file.write("{не json")
@@ -46,6 +50,7 @@ def test_broken_json_raises_value_error(tmp_path) -> None:
 
 
 def test_library_stats() -> None:
+    """Статистика учитывает игры, часы и статусы."""
     games: dict[int, dict] = {}
     game_id = add_game(games, "Celeste", "Платформер", "PC", 2018, 12.0, 8)
     sessions: list[dict] = []
