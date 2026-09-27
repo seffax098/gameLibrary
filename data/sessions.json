@@ -1,26 +1,50 @@
 [
   {
     "id": 1,
+    "user_id": 1,
     "game_id": 1,
     "date": "2026-09-10",
-    "hours": 4.5
+    "hours": 4.5,
+    "is_cancelled": false
   },
   {
     "id": 2,
+    "user_id": 1,
     "game_id": 1,
     "date": "2026-09-12",
-    "hours": 6.0
+    "hours": 6.0,
+    "is_cancelled": false
   },
   {
     "id": 3,
+    "user_id": 1,
     "game_id": 2,
     "date": "2026-09-13",
-    "hours": 40.0
+    "hours": 40.0,
+    "is_cancelled": false
   },
   {
     "id": 4,
+    "user_id": 2,
     "game_id": 3,
     "date": "2026-09-15",
-    "hours": 3.0
+    "hours": 3.0,
+    "is_cancelled": false
+  },
+  {
+    "id": 5,
+    "user_id": 2,
+    "game_id": 1,
+    "date": "2026-09-12",
+    "hours": 2.0,
+    "is_cancelled": false
+  },
+  {
+    "id": 6,
+    "user_id": 2,
+    "game_id": 4,
+    "date": "2026-09-16",
+    "hours": 1.5,
+    "is_cancelled": true
   }
 ]
