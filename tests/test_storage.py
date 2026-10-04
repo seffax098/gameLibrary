@@ -12,6 +12,7 @@ from models.games import add_game
 from models.sessions import log_session
 from storage import (
     load_games,
+    load_library,
     load_sessions,
     load_users,
     save_games,
@@ -109,6 +110,25 @@ def test_session_with_unknown_user_is_rejected(
     save_sessions(sessions, filename)
     with pytest.raises(ValueError, match="Пользователь"):
         load_sessions([witcher], [], filename)
+
+
+def test_load_library_restores_all_collections(
+    tmp_path: Path,
+    ivan: User,
+    witcher: Game,
+) -> None:
+    """Из каталога данных загружаются игры, пользователи и сессии."""
+    sessions: list[GameSession] = []
+    log_session(sessions, ivan, witcher, DAY, 2.5)
+    save_games([witcher], os.path.join(tmp_path, "games.json"))
+    save_users([ivan], os.path.join(tmp_path, "users.json"))
+    save_sessions(sessions, os.path.join(tmp_path, "sessions.json"))
+
+    games, users, loaded = load_library(tmp_path)
+    assert [game.title for game in games] == [witcher.title]
+    assert [user.email for user in users] == [ivan.email]
+    assert loaded[0].game is games[0]
+    assert loaded[0].user is users[0]
 
 
 def test_missing_file_gives_empty_library(tmp_path: Path) -> None:

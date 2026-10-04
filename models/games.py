@@ -185,15 +185,27 @@ def add_game(
     return game
 
 
+def find_game_by_id(games: list[Game], game_id: int) -> Game | None:
+    """Найти игру по идентификатору.
+
+    Если игры нет, возвращается None: веб-страница игры проверяет
+    результат и отвечает кодом 404.
+    """
+    for game in games:
+        if game.id == game_id:
+            return game
+    return None
+
+
 def get_game(games: list[Game], game_id: int) -> Game:
     """Вернуть игру по идентификатору.
 
     Если игра не найдена, возбуждается исключение KeyError.
     """
-    for game in games:
-        if game.id == game_id:
-            return game
-    raise KeyError(f"Игра с идентификатором {game_id} не найдена.")
+    game = find_game_by_id(games, game_id)
+    if game is None:
+        raise KeyError(f"Игра с идентификатором {game_id} не найдена.")
+    return game
 
 
 def remove_game(games: list[Game], game_id: int) -> Game:

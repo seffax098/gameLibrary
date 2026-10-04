@@ -8,6 +8,7 @@ from models import Game, GameSession, User
 from models.sessions import (
     active_sessions,
     cancel_session,
+    find_session_by_id,
     hours_played,
     is_day_free,
     log_session,
@@ -138,6 +139,15 @@ def test_cancel_unknown_session_raises_key_error() -> None:
     """Отмена несуществующей сессии вызывает KeyError."""
     with pytest.raises(KeyError):
         cancel_session([], 1)
+
+
+def test_find_session_by_id(ivan: User, witcher: Game) -> None:
+    """Сессия находится по идентификатору, иначе возвращается None."""
+    sessions: list[GameSession] = []
+    session = log_session(sessions, ivan, witcher, DAY, 2.5)
+    assert session is not None
+    assert find_session_by_id(sessions, session.id) is session
+    assert find_session_by_id(sessions, 99) is None
 
 
 def test_hours_played_counts_active_sessions(

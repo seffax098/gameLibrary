@@ -152,6 +152,24 @@ def load_sessions(
     )
 
 
+def load_library(
+    data_dir: str | os.PathLike[str] = DATA_DIR,
+) -> tuple[list[Game], list[User], list[GameSession]]:
+    """Загрузить игры, пользователей и сессии из каталога данных.
+
+    Сессии загружаются последними: им нужны уже созданные объекты
+    игр и пользователей. Функцию используют и консольная версия
+    (main.py), и view-функции Django, которые передают каталог
+    данных из настроек проекта.
+    """
+    games = load_games(os.path.join(data_dir, "games.json"))
+    users = load_users(os.path.join(data_dir, "users.json"))
+    sessions = load_sessions(
+        games, users, os.path.join(data_dir, "sessions.json")
+    )
+    return games, users, sessions
+
+
 def save_sessions(
     sessions: list[GameSession],
     filename: str = SESSIONS_FILE,

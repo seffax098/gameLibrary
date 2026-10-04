@@ -151,15 +151,30 @@ def log_session(
     return session
 
 
+def find_session_by_id(
+    sessions: list[GameSession],
+    session_id: int,
+) -> GameSession | None:
+    """Найти сессию по идентификатору.
+
+    Если сессии нет, возвращается None: веб-страница сессии проверяет
+    результат и отвечает кодом 404.
+    """
+    for session in sessions:
+        if session.id == session_id:
+            return session
+    return None
+
+
 def get_session(sessions: list[GameSession], session_id: int) -> GameSession:
     """Вернуть сессию по идентификатору.
 
     Если сессия не найдена, возбуждается исключение KeyError.
     """
-    for session in sessions:
-        if session.id == session_id:
-            return session
-    raise KeyError(f"Сессия с идентификатором {session_id} не найдена.")
+    session = find_session_by_id(sessions, session_id)
+    if session is None:
+        raise KeyError(f"Сессия с идентификатором {session_id} не найдена.")
+    return session
 
 
 def cancel_session(

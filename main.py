@@ -435,15 +435,12 @@ def print_menu() -> None:
 def load_data() -> tuple[list[Game], list[User], list[GameSession]]:
     """Загрузить коллекции объектов из JSON-файлов.
 
-    Сессии загружаются последними: им нужны уже созданные объекты
-    игр и пользователей. При повреждённых файлах программа не
+    При повреждённых файлах программа не
     завершается: выводится предупреждение и работа начинается с
     пустой библиотеки.
     """
     try:
-        games = storage.load_games()
-        users = storage.load_users()
-        sessions = storage.load_sessions(games, users)
+        games, users, sessions = storage.load_library()
     except ValueError as error:
         print(f"Предупреждение: {error}")
         print("Работа продолжится с пустой библиотекой.")

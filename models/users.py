@@ -72,15 +72,26 @@ def add_user(users: list[User], name: str, email: str) -> User:
     return user
 
 
+def find_user_by_id(users: list[User], user_id: int) -> User | None:
+    """Найти пользователя по идентификатору.
+
+    Если пользователя нет, возвращается None.
+    """
+    for user in users:
+        if user.id == user_id:
+            return user
+    return None
+
+
 def get_user(users: list[User], user_id: int) -> User:
     """Вернуть пользователя по идентификатору.
 
     Если пользователь не найден, возбуждается исключение KeyError.
     """
-    for user in users:
-        if user.id == user_id:
-            return user
-    raise KeyError(f"Пользователь с идентификатором {user_id} не найден.")
+    user = find_user_by_id(users, user_id)
+    if user is None:
+        raise KeyError(f"Пользователь с идентификатором {user_id} не найден.")
+    return user
 
 
 def find_users(users: list[User], query: str) -> list[User]:

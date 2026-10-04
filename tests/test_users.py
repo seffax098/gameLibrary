@@ -3,7 +3,7 @@
 import pytest
 
 from models import User
-from models.users import add_user, find_users, get_user
+from models.users import add_user, find_user_by_id, find_users, get_user
 
 
 def test_user_creation() -> None:
@@ -93,3 +93,11 @@ def test_get_user() -> None:
     assert get_user(users, 1) is user
     with pytest.raises(KeyError):
         get_user(users, 2)
+
+
+def test_find_user_by_id() -> None:
+    """Пользователь находится по идентификатору, иначе возвращается None."""
+    users: list[User] = []
+    user = add_user(users, "Иван Петров", "ivan@example.com")
+    assert find_user_by_id(users, 1) is user
+    assert find_user_by_id(users, 2) is None

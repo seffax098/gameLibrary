@@ -7,6 +7,7 @@ from models.games import (
     add_game,
     filter_games_by_platform,
     filter_games_by_year,
+    find_game_by_id,
     find_games,
     get_game,
     remove_game,
@@ -169,6 +170,13 @@ def test_get_game() -> None:
     assert get_game(games, 2).title == "Hades"
     with pytest.raises(KeyError):
         get_game(games, 99)
+
+
+def test_find_game_by_id() -> None:
+    """Игра находится по идентификатору, иначе возвращается None."""
+    games = make_library()
+    assert find_game_by_id(games, 2) is games[1]
+    assert find_game_by_id(games, 99) is None
 
 
 def test_remove_game() -> None:
