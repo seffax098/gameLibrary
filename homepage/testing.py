@@ -6,32 +6,36 @@ data/ проекта: так тесты не зависят от содержи�
 """
 
 import os
+import shutil
 import tempfile
 from datetime import date
 
-from django.test import override_settings
+from django.test import SimpleTestCase, override_settings
 
+from models import Game, GameSession, User
 from models.games import add_game
 from models.sessions import log_session
 from models.users import add_user
 from storage import save_games, save_sessions, save_users
 
 
-class LibraryDataMixin:
-    """Подменить DATA_DIR временным каталогом с тестовой библиотекой.
+class LibraryTestCase(SimpleTestCase):
+    """Базовый класс тестов страниц с тестовой библиотекой.
 
-    Библиотека: две игры (у второй название с HTML-символами), два
-    игрока, активная сессия Ивана и отменённая сессия Анны в The
-    Witcher 3.
+    Подменяет DATA_DIR временным каталогом. Библиотека: две игры (у
+    второй название с HTML-символами), два игрока, активная сессия Ивана
+    и отменённая сессия Анны в The Witcher 3.
     """
 
     @classmethod
-    def setUpClass(cls):
+    def setUpClass(cls) -> None:
         """Создать JSON-файлы и включить подмену настроек."""
-        data_dir = tempfile.TemporaryDirectory()
-        cls.addClassCleanup(data_dir.cleanup)
+        data_dir = tempfile.mkdtemp()
+        cls.addClassCleanup(shutil.rmtree, data_dir)
 
-        games, users, sessions = [], [], []
+        games: list[Game] = []
+        users: list[User] = []
+        sessions: list[GameSession] = []
         witcher = add_game(
             games, "The Witcher 3", "RPG", "PC", 2015, 100.0, 10
         )
@@ -40,13 +44,14 @@ class LibraryDataMixin:
         anna = add_user(users, "Анна Смирнова", "anna@example.com")
         log_session(sessions, ivan, witcher, date(2026, 9, 10), 4.5)
         cancelled = log_session(sessions, anna, witcher, date(2026, 9, 11), 2)
+        assert cancelled is not None
         cancelled.cancel()
 
-        save_games(games, os.path.join(data_dir.name, "games.json"))
-        save_users(users, os.path.join(data_dir.name, "users.json"))
-        save_sessions(sessions, os.path.join(data_dir.name, "sessions.json"))
+        save_games(games, os.path.join(data_dir, "games.json"))
+        save_users(users, os.path.join(data_dir, "users.json"))
+        save_sessions(sessions, os.path.join(data_dir, "sessions.json"))
 
-        data_settings = override_settings(DATA_DIR=data_dir.name)
+        data_settings = override_settings(DATA_DIR=data_dir)
         data_settings.enable()
         cls.addClassCleanup(data_settings.disable)
         super().setUpClass()

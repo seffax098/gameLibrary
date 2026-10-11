@@ -6,24 +6,25 @@
 """
 
 from django.conf import settings
-from django.http import HttpResponse
+from django.http import HttpRequest, HttpResponse
 from django.urls import reverse
 from django.utils.html import escape
 
 from games.views import progress_html
-from homepage.views import not_found, page
+from homepage.views import not_found, page, table_section
+from models import GameSession
 from models.sessions import DATE_FORMAT, find_session_by_id, get_progress
 from storage import load_library
 
 
-def status_badge(session):
+def status_badge(session: GameSession) -> str:
     """Вернуть бейдж состояния сессии по признаку is_cancelled."""
     if session.is_cancelled:
         return '<span class="badge bg-secondary">отменена</span>'
     return '<span class="badge bg-success">активна</span>'
 
 
-def sessions(request):
+def sessions(request: HttpRequest) -> HttpResponse:
     """Страница /sessions/: все сессии из data/sessions.json по датам.
 
     Отменённые сессии тоже показываются: они остаются в истории.
@@ -46,27 +47,18 @@ def sessions(request):
             <td>{status_badge(session)}</td>
         </tr>
         """
-    content = f"""
-    <h1>Игровые сессии</h1>
-    <div class="card shadow-sm">
-        <div class="table-responsive">
-            <table class="table table-hover align-middle mb-0">
-                <thead class="table-light">
-                    <tr>
-                        <th>Сессия</th><th>Дата</th><th>Игрок</th>
-                        <th>Игра</th><th class="text-end">Часы</th>
-                        <th>Статус</th>
-                    </tr>
-                </thead>
-                <tbody>{rows}</tbody>
-            </table>
-        </div>
-    </div>
-    """
+    header = (
+        "<th>Сессия</th><th>Дата</th><th>Игрок</th><th>Игра</th>"
+        '<th class="text-end">Часы</th><th>Статус</th>'
+    )
+    content = table_section("Игровые сессии", header, rows)
     return HttpResponse(page("Игровая библиотека - сессии", content))
 
 
-def session_detail(request, session_id):
+def session_detail(
+    request: HttpRequest,
+    session_id: int,
+) -> HttpResponse:
     """Страница /sessions/<id>/: карточка сессии и прогресс игрока.
 
     Если сессии с таким идентификатором нет, возвращается код 404.

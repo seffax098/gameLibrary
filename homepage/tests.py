@@ -1,21 +1,20 @@
 """Тесты главной страницы и общего каркаса страниц."""
 
-from django.test import SimpleTestCase
 from django.urls import resolve, reverse
 
 from homepage import views
-from homepage.testing import LibraryDataMixin
+from homepage.testing import LibraryTestCase
 
 
-class IndexPageTests(LibraryDataMixin, SimpleTestCase):
+class IndexPageTests(LibraryTestCase):
     """Страница / и функция page()."""
 
-    def test_index_url(self):
+    def test_index_url(self) -> None:
         """Адрес / обрабатывается view-функцией index()."""
         self.assertEqual(reverse("index"), "/")
         self.assertEqual(resolve("/").func, views.index)
 
-    def test_index_page(self):
+    def test_index_page(self) -> None:
         """Главная страница показывает описание и сводку библиотеки."""
         response = self.client.get("/")
         self.assertContains(response, "<title>Игровая библиотека</title>")
@@ -24,7 +23,7 @@ class IndexPageTests(LibraryDataMixin, SimpleTestCase):
         self.assertContains(response, "Иван Петров")
         self.assertContains(response, "4.5 ч")
 
-    def test_page_has_bootstrap_and_navigation(self):
+    def test_page_has_bootstrap_and_navigation(self) -> None:
         """Каркас подключает Bootstrap и ссылки на все разделы."""
         html = views.page("Заголовок", "<p>Текст</p>")
         self.assertIn("<!DOCTYPE html>", html)
@@ -34,12 +33,12 @@ class IndexPageTests(LibraryDataMixin, SimpleTestCase):
             self.assertIn(f'href="{reverse(name)}"', html)
         self.assertIn('<main class="container pb-5"><p>Текст</p>', html)
 
-    def test_page_escapes_title(self):
+    def test_page_escapes_title(self) -> None:
         """Заголовок вкладки экранируется."""
         html = views.page("<b>Игра</b>", "")
         self.assertIn("<title>&lt;b&gt;Игра&lt;/b&gt;</title>", html)
 
-    def test_not_found_returns_404(self):
+    def test_not_found_returns_404(self) -> None:
         """not_found() возвращает страницу ошибки с кодом 404."""
         response = views.not_found("Нет такой страницы", "/", "← назад")
         self.assertEqual(response.status_code, 404)

@@ -1,10 +1,9 @@
-"""
-WSGI config for gamelibrary project.
+"""Точка входа WSGI-сервера для проекта gamelibrary.
 
-It exposes the WSGI callable as a module-level variable named ``application``.
+Модуль предоставляет объект application, через который WSGI-сервер
+передаёт HTTP-запросы в Django-приложение.
 
-For more information on this file, see
-https://docs.djangoproject.com/en/5.2/howto/deployment/wsgi/
+Подробнее: https://docs.djangoproject.com/en/5.2/howto/deployment/wsgi/
 """
 
 import os

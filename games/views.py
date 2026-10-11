@@ -6,13 +6,13 @@
 """
 
 from django.conf import settings
-from django.http import HttpResponse
+from django.http import HttpRequest, HttpResponse
 from django.urls import reverse
 from django.utils.html import escape
 
-from homepage.views import not_found, page
+from homepage.views import not_found, page, table_section
 from models.games import find_game_by_id
-from models.progress import COMPLETED, IN_PROGRESS
+from models.progress import COMPLETED, IN_PROGRESS, Progress
 from models.sessions import (
     DATE_FORMAT,
     active_sessions,
@@ -27,7 +27,7 @@ STATUS_BADGES: dict[str, str] = {
 }
 
 
-def progress_html(progress):
+def progress_html(progress: Progress) -> str:
     """Вернуть шкалу прогресса Bootstrap со статусом прохождения.
 
     Процент, статус и оставшиеся часы - вычисляемые свойства объекта
@@ -52,7 +52,7 @@ def progress_html(progress):
     """
 
 
-def games(request):
+def games(request: HttpRequest) -> HttpResponse:
     """Страница /games/: список игр библиотеки из data/games.json."""
     games_list, _, sessions_list = load_library(settings.DATA_DIR)
     rows = ""
@@ -70,27 +70,15 @@ def games(request):
             <td class="text-end">{played:.1f} ч</td>
         </tr>
         """
-    content = f"""
-    <h1>Игры</h1>
-    <div class="card shadow-sm">
-        <div class="table-responsive">
-            <table class="table table-hover align-middle mb-0">
-                <thead class="table-light">
-                    <tr>
-                        <th>ID</th><th>Название</th><th>Жанр</th>
-                        <th>Платформа</th><th>Год</th><th>Оценка</th>
-                        <th class="text-end">Сыграно всеми</th>
-                    </tr>
-                </thead>
-                <tbody>{rows}</tbody>
-            </table>
-        </div>
-    </div>
-    """
+    header = (
+        "<th>ID</th><th>Название</th><th>Жанр</th><th>Платформа</th>"
+        '<th>Год</th><th>Оценка</th><th class="text-end">Сыграно всеми</th>'
+    )
+    content = table_section("Игры", header, rows)
     return HttpResponse(page("Игровая библиотека - игры", content))
 
 
-def game_detail(request, game_id):
+def game_detail(request: HttpRequest, game_id: int) -> HttpResponse:
     """Страница /games/<id>/: карточка игры и прогресс игроков.
 
     Если игры с таким идентификатором нет, возвращается код 404.

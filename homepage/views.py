@@ -7,7 +7,7 @@
 """
 
 from django.conf import settings
-from django.http import HttpResponse
+from django.http import HttpRequest, HttpResponse
 from django.urls import reverse
 from django.utils.html import escape
 
@@ -26,7 +26,7 @@ NAV_LINKS: tuple[tuple[str, str], ...] = (
 )
 
 
-def page(title, content):
+def page(title: str, content: str) -> str:
     """Собрать HTML-документ страницы.
 
     Каркас общий для всех страниц: кодировка, заголовок вкладки,
@@ -66,7 +66,7 @@ def page(title, content):
 </html>"""
 
 
-def not_found(message, back_url, back_text):
+def not_found(message: str, back_url: str, back_text: str) -> HttpResponse:
     """Вернуть страницу с сообщением об ошибке и кодом статуса 404."""
     content = f"""
     <h1 class="text-danger">{escape(message)}</h1>
@@ -75,7 +75,27 @@ def not_found(message, back_url, back_text):
     return HttpResponse(page(message, content), status=404)
 
 
-def stat_card(label, value):
+def table_section(heading: str, header: str, rows: str) -> str:
+    """Вернуть раздел страницы: заголовок и таблицу Bootstrap в карточке.
+
+    header - ячейки <th> строки заголовка, rows - строки <tr> таблицы.
+    Таблица прокручивается внутри блока table-responsive, поэтому не
+    растягивает страницу на узком экране.
+    """
+    return f"""
+    <h1>{heading}</h1>
+    <div class="card shadow-sm">
+        <div class="table-responsive">
+            <table class="table table-hover align-middle mb-0">
+                <thead class="table-light"><tr>{header}</tr></thead>
+                <tbody>{rows}</tbody>
+            </table>
+        </div>
+    </div>
+    """
+
+
+def stat_card(label: str, value: object) -> str:
     """Вернуть карточку с одним показателем сводки."""
     return f"""
     <div class="col-6 col-lg">
@@ -89,7 +109,7 @@ def stat_card(label, value):
     """
 
 
-def ranking_item(name, hours):
+def ranking_item(name: str, hours: float) -> str:
     """Вернуть строку рейтинга: название и сыгранные часы."""
     return (
         '<li class="list-group-item d-flex justify-content-between">'
@@ -97,7 +117,7 @@ def ranking_item(name, hours):
     )
 
 
-def index(request):
+def index(request: HttpRequest) -> HttpResponse:
     """Главная страница: описание библиотеки, сводка и навигация."""
     games, users, sessions = load_library(settings.DATA_DIR)
     stats = library_stats(games, users, sessions)

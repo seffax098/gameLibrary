@@ -16,7 +16,7 @@ Github - https://github.com/seffax098/gameLibrary
 - CSS и Bootstrap 5.3 (подключается через CDN) — оформление страниц;
 - JSON — хранение данных (на этапе перехода к Django ORM);
 - pytest и `django.test` — автоматизированные тесты;
-- flake8 — проверка качества кода.
+- flake8, mypy (с `django-stubs`) и pylint — проверка качества кода и типов.
 
 ## Назначение
 
@@ -414,7 +414,7 @@ View-функции не дублируют предметную логику. �
 ```text
 gameLibrary/
 ├── README.md             — документация проекта
-├── requirements.txt      — зависимости (Django, pytest, flake8)
+├── requirements.txt      — зависимости (Django, pytest, flake8, mypy)
 ├── setup.cfg             — настройки flake8 и pylint
 ├── conftest.py           — настройка pytest и общие тестовые объекты
 ├── manage.py             — управление Django-проектом
@@ -581,14 +581,18 @@ gameLibrary/
 - Python 3.10+ (используются аннотации вида `list[Game]` и `Game | None`);
 - Django 5.2;
 - pytest;
-- flake8.
+- flake8;
+- mypy и django-stubs.
 
 Состав `requirements.txt`:
 
 - `Django==5.2.*` — веб-фреймворк (версия указана явно, чтобы не установилась
   другая мажорная версия);
 - `pytest` — автоматизированные тесты;
-- `flake8` — проверка качества кода.
+- `flake8` — проверка качества кода;
+- `mypy` — проверка типов;
+- `django-stubs` — аннотации типов Django для mypy (версия совпадает с
+  версией Django).
 
 Установка зависимостей в виртуальное окружение:
 
@@ -671,6 +675,18 @@ flake8 .
 
 Проверяются все Python-файлы проекта, включая созданные Django; каталоги
 виртуального окружения (`.venv`, `venv`) исключены в `setup.cfg`.
+
+Проверка типов:
+
+```text
+mypy .
+```
+
+Сам Django не содержит аннотаций типов, поэтому для mypy подключён пакет
+`django-stubs` и его плагин (`setup.cfg`, раздел `[mypy]`). Без него mypy
+сообщает `Skipping analyzing "django...": missing library stubs`.
+View-функции аннотированы: `request: HttpRequest`, результат —
+`HttpResponse`.
 
 ## Git
 

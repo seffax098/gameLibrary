@@ -1,10 +1,9 @@
-"""
-ASGI config for gamelibrary project.
+"""Точка входа ASGI-сервера для проекта gamelibrary.
 
-It exposes the ASGI callable as a module-level variable named ``application``.
+Модуль предоставляет объект application, через который ASGI-сервер
+передаёт HTTP-запросы в Django-приложение.
 
-For more information on this file, see
-https://docs.djangoproject.com/en/5.2/howto/deployment/asgi/
+Подробнее: https://docs.djangoproject.com/en/5.2/howto/deployment/asgi/
 """
 
 import os
