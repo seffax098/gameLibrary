@@ -11,7 +11,13 @@ from django.urls import reverse
 from django.utils.html import escape
 
 from games.views import progress_html
-from homepage.views import not_found, page, table_section
+from homepage.views import (
+    back_link,
+    facts_list,
+    not_found,
+    page,
+    table_section,
+)
 from models import GameSession
 from models.sessions import DATE_FORMAT, find_session_by_id, get_progress
 from storage import load_library
@@ -20,8 +26,14 @@ from storage import load_library
 def status_badge(session: GameSession) -> str:
     """Вернуть бейдж состояния сессии по признаку is_cancelled."""
     if session.is_cancelled:
-        return '<span class="badge bg-secondary">отменена</span>'
-    return '<span class="badge bg-success">активна</span>'
+        return (
+            '<span class="badge rounded-pill bg-secondary-subtle '
+            'text-secondary-emphasis">отменена</span>'
+        )
+    return (
+        '<span class="badge rounded-pill bg-success-subtle '
+        'text-success-emphasis">активна</span>'
+    )
 
 
 def sessions(request: HttpRequest) -> HttpResponse:
@@ -36,9 +48,8 @@ def sessions(request: HttpRequest) -> HttpResponse:
         rows += f"""
         <tr>
             <td>
-                <a href="{reverse('session_detail', args=[session.id])}">
-                    №{session.id}
-                </a>
+                <a href="{reverse('session_detail', args=[session.id])}"
+                   class="fw-medium">№{session.id}</a>
             </td>
             <td>{session.date.strftime(DATE_FORMAT)}</td>
             <td>{escape(session.user.name)}</td>
@@ -52,7 +63,9 @@ def sessions(request: HttpRequest) -> HttpResponse:
         '<th class="text-end">Часы</th><th>Статус</th>'
     )
     content = table_section("Игровые сессии", header, rows)
-    return HttpResponse(page("Игровая библиотека - сессии", content))
+    return HttpResponse(
+        page("Игровая библиотека - сессии", content, active="sessions")
+    )
 
 
 def session_detail(
@@ -72,52 +85,33 @@ def session_detail(
 
     progress = get_progress(sessions_list, session.user, session.game)
     game_url = reverse("game_detail", args=[session.game.id])
+    facts = facts_list([
+        ("Игра", f'<a href="{game_url}">{escape(session.game.title)}</a>'),
+        ("Игрок", escape(session.user.name)),
+        ("Почта", escape(session.user.email)),
+        ("Дата", session.date.strftime(DATE_FORMAT)),
+        ("Сыграно", f"{session.hours:.1f} ч"),
+        ("Статус", status_badge(session)),
+    ])
     content = f"""
+    {back_link(reverse('sessions'), 'Игровые сессии')}
+    <h1 class="mb-4">Сессия №{session.id}</h1>
     <div class="row g-4">
         <div class="col-lg-6">
-            <div class="card shadow-sm">
-                <div class="card-body">
-                    <h1 class="h3 card-title">Сессия №{session.id}</h1>
-                    <p class="card-text">
-                        <strong>Игра:</strong>
-                        <a href="{game_url}">
-                            {escape(session.game.title)}
-                        </a>
-                    </p>
-                    <p class="card-text">
-                        <strong>Игрок:</strong>
-                        {escape(session.user.name)}
-                        ({escape(session.user.email)})
-                    </p>
-                    <p class="card-text">
-                        <strong>Дата:</strong>
-                        {session.date.strftime(DATE_FORMAT)}
-                    </p>
-                    <p class="card-text">
-                        <strong>Сыграно:</strong> {session.hours:.1f} ч
-                    </p>
-                    <p class="card-text">
-                        <strong>Статус:</strong> {status_badge(session)}
-                    </p>
-                    <a href="{reverse('sessions')}"
-                       class="btn btn-outline-secondary">
-                        ← к списку сессий
-                    </a>
-                </div>
-            </div>
+            <div class="panel p-4">{facts}</div>
         </div>
         <div class="col-lg-6">
-            <h2 class="h4">Прогресс игрока в игре</h2>
-            <div class="card shadow-sm">
-                <div class="card-body">
-                    {progress_html(progress)}
-                    <p class="text-muted small mt-3 mb-0">
-                        Прогресс считается по активным сессиям игрока:
-                        отменённая сессия в нём не учитывается.
-                    </p>
-                </div>
+            <h2 class="h5 mb-3">Прогресс игрока в игре</h2>
+            <div class="panel p-3">
+                {progress_html(progress)}
+                <p class="text-muted small mt-3 mb-0">
+                    Прогресс считается по активным сессиям игрока:
+                    отменённая сессия в нём не учитывается.
+                </p>
             </div>
         </div>
     </div>
     """
-    return HttpResponse(page(f"Сессия №{session.id}", content))
+    return HttpResponse(
+        page(f"Сессия №{session.id}", content, active="sessions")
+    )

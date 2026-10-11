@@ -31,7 +31,17 @@ class IndexPageTests(LibraryTestCase):
         self.assertIn('name="viewport"', html)
         for name in ("index", "games", "sessions"):
             self.assertIn(f'href="{reverse(name)}"', html)
-        self.assertIn('<main class="container pb-5"><p>Текст</p>', html)
+        self.assertIn('<main class="container py-5"><p>Текст</p>', html)
+
+    def test_page_marks_active_section(self) -> None:
+        """Текущий раздел выделяется в навигации, остальные - нет."""
+        html = views.page("Игры", "", active="games")
+        self.assertIn(
+            f'class="nav-link active" aria-current="page" '
+            f'href="{reverse("games")}"',
+            html,
+        )
+        self.assertEqual(html.count('aria-current="page"'), 1)
 
     def test_page_escapes_title(self) -> None:
         """Заголовок вкладки экранируется."""
