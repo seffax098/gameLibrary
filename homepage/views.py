@@ -29,9 +29,6 @@ NAV_LINKS: tuple[tuple[str, str], ...] = (
     ("sessions", "Игровые сессии"),
 )
 
-# Собственные стили поверх Bootstrap: светлый минималистичный вид,
-# тонкие рамки вместо теней и один акцентный цвет. Цвета заданы
-# CSS-переменными, переменные --bs-* перенастраивают Bootstrap.
 STYLES = """
 :root {
     --ink: #111827;
@@ -233,7 +230,9 @@ def index(request: HttpRequest) -> HttpResponse:
             Учёт общей коллекции видеоигр: игры, игровые сессии и личный
             прогресс прохождения каждого игрока.
         </p>
-        <a href="{reverse('games')}" class="btn btn-dark me-2">Игры</a>
+        <a href="{reverse('games')}" class="btn btn-outline-secondary">
+            Игры
+        </a>
         <a href="{reverse('sessions')}" class="btn btn-outline-secondary">
             Игровые сессии
         </a>
