@@ -26,7 +26,7 @@ SECRET_KEY = (
 )
 
 # ВНИМАНИЕ: не включайте режим отладки на рабочем сервере!
-DEBUG = True
+DEBUG = False
 
 ALLOWED_HOSTS: list[str] = ["localhost", "127.0.0.1"]
 
