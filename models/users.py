@@ -73,10 +73,7 @@ def add_user(users: list[User], name: str, email: str) -> User:
 
 
 def find_user_by_id(users: list[User], user_id: int) -> User | None:
-    """Найти пользователя по идентификатору.
-
-    Если пользователя нет, возвращается None.
-    """
+    """Найти пользователя по идентификатору."""
     for user in users:
         if user.id == user_id:
             return user

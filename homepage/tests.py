@@ -50,11 +50,7 @@ class IndexPageTests(LibraryTestCase):
         self.assertIn("<title>&lt;b&gt;Игра&lt;/b&gt;</title>", html)
 
     def test_unknown_url_shows_custom_404(self) -> None:
-        """Адрес без маршрута - собственная страница 404 проекта.
-
-        Тесты Django выполняются с DEBUG = False, поэтому срабатывает
-        обработчик handler404, а не отладочная страница.
-        """
+        """Адрес без маршрута - собственная страница 404 проекта."""
         response = self.client.get("/nonexistent/")
         self.assertContains(response, "Страница не найдена", status_code=404)
         self.assertContains(response, views.BOOTSTRAP_CSS, status_code=404)

@@ -1,9 +1,4 @@
-"""View-функции приложения games.
-
-Страницы строятся по объектам Game из JSON-хранилища ПР3: view-функции
-загружают данные функциями storage, находят игру по идентификатору и
-вызывают методы предметной модели, не дублируя её логику.
-"""
+"""View-функции приложения games."""
 
 from django.conf import settings
 from django.http import HttpRequest, HttpResponse
@@ -27,7 +22,6 @@ from models.sessions import (
 )
 from storage import load_library
 
-# Приглушённые бейджи Bootstrap 5.3: светлый фон и тёмный текст цвета.
 STATUS_BADGES: dict[str, str] = {
     COMPLETED: "bg-success-subtle text-success-emphasis",
     IN_PROGRESS: "bg-warning-subtle text-warning-emphasis",
@@ -36,11 +30,7 @@ DEFAULT_BADGE = "bg-secondary-subtle text-secondary-emphasis"
 
 
 def progress_html(progress: Progress) -> str:
-    """Вернуть шкалу прогресса Bootstrap со статусом прохождения.
-
-    Процент, статус и оставшиеся часы - вычисляемые свойства объекта
-    Progress из ПР3. Функцию использует и приложение gamesessions.
-    """
+    """Вернуть шкалу прогресса Bootstrap со статусом прохождения."""
     badge = STATUS_BADGES.get(progress.status, DEFAULT_BADGE)
     return f"""
     <div class="d-flex justify-content-between align-items-center mb-2">
@@ -89,10 +79,7 @@ def games(request: HttpRequest) -> HttpResponse:
 
 
 def game_detail(request: HttpRequest, game_id: int) -> HttpResponse:
-    """Страница /games/<id>/: карточка игры и прогресс игроков.
-
-    Если игры с таким идентификатором нет, возвращается код 404.
-    """
+    """Страница /games/<id>/: карточка игры и прогресс игроков."""
     games_list, users_list, sessions_list = load_library(settings.DATA_DIR)
     game = find_game_by_id(games_list, game_id)
     if game is None:

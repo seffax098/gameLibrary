@@ -186,11 +186,7 @@ def add_game(
 
 
 def find_game_by_id(games: list[Game], game_id: int) -> Game | None:
-    """Найти игру по идентификатору.
-
-    Если игры нет, возвращается None: веб-страница игры проверяет
-    результат и отвечает кодом 404.
-    """
+    """Найти игру по идентификатору."""
     for game in games:
         if game.id == game_id:
             return game

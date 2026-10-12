@@ -155,11 +155,7 @@ def find_session_by_id(
     sessions: list[GameSession],
     session_id: int,
 ) -> GameSession | None:
-    """Найти сессию по идентификатору.
-
-    Если сессии нет, возвращается None: веб-страница сессии проверяет
-    результат и отвечает кодом 404.
-    """
+    """Найти сессию по идентификатору."""
     for session in sessions:
         if session.id == session_id:
             return session

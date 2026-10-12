@@ -32,7 +32,7 @@ ALLOWED_HOSTS: list[str] = ["localhost", "127.0.0.1"]
 
 
 # Подключённые приложения: встроенные приложения Django и
-# приложения проекта (homepage, games, gamesessions).
+# приложения проекта.
 
 INSTALLED_APPS = [
     'django.contrib.admin',
@@ -76,8 +76,7 @@ TEMPLATES = [
 WSGI_APPLICATION = 'gamelibrary.wsgi.application'
 
 
-# База данных. Пока в ней только служебные таблицы Django: данные
-# библиотеки хранятся в JSON-файлах (см. DATA_DIR).
+# База данных.
 # https://docs.djangoproject.com/en/5.2/ref/settings/#databases
 
 DATABASES = {
@@ -143,8 +142,6 @@ STATIC_URL = 'static/'
 DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
 
 
-# Данные игровой библиотеки (JSON-хранилище ПР3).
-# Путь строится от BASE_DIR, поэтому страницы находят файлы
-# независимо от каталога, из которого запущен сервер.
+# Каталог JSON-файлов с данными библиотеки.
 
 DATA_DIR = BASE_DIR / 'data'

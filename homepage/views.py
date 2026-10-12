@@ -1,10 +1,4 @@
-"""View-функции приложения homepage.
-
-Здесь же находится общий каркас страниц проекта - функция page() - и
-небольшие функции оформления, общие для всех приложений. Главная
-страница - точка входа в проект и задаёт вид остальных страниц,
-поэтому приложения games и gamesessions импортируют их отсюда.
-"""
+"""View-функции приложения homepage и общий каркас страниц page()."""
 
 from django.conf import settings
 from django.http import HttpRequest, HttpResponse
@@ -94,14 +88,7 @@ h1, h2 { font-weight: 600; letter-spacing: -0.02em; }
 
 
 def page(title: str, content: str, active: str | None = None) -> str:
-    """Собрать HTML-документ страницы.
-
-    Каркас общий для всех страниц: кодировка, заголовок вкладки,
-    подключение Bootstrap 5.3 и шрифта через CDN, навигация и контейнер
-    с содержимым. active - имя маршрута раздела, который выделяется в
-    навигации. Заголовок экранируется здесь, содержимое передаётся уже
-    готовой HTML-разметкой.
-    """
+    """Собрать HTML-документ страницы."""
     links = ""
     for name, text in NAV_LINKS:
         state = ' active" aria-current="page' if name == active else ""
@@ -152,20 +139,14 @@ def not_found(message: str, back_url: str, back_text: str) -> HttpResponse:
 
 
 def page_not_found(request: HttpRequest, exception: Exception) -> HttpResponse:
-    """Обработчик ошибки 404 для всего проекта (handler404)..
-    """
+    """Обработчик ошибки 404 для всего проекта (handler404)."""
     return not_found(
         "Страница не найдена", reverse("index"), "← на главную"
     )
 
 
 def table_section(heading: str, header: str, rows: str) -> str:
-    """Вернуть раздел страницы: заголовок и таблицу в рамке.
-
-    header - ячейки <th> строки заголовка, rows - строки <tr> таблицы.
-    Таблица прокручивается внутри блока table-responsive, поэтому не
-    растягивает страницу на узком экране.
-    """
+    """Вернуть раздел страницы: заголовок и таблицу в рамке."""
     return f"""
     <h1 class="mb-4">{heading}</h1>
     <div class="panel overflow-hidden">

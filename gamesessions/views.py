@@ -1,9 +1,4 @@
-"""View-функции приложения gamesessions.
-
-Страницы строятся по объектам GameSession из JSON-хранилища ПР3.
-Сессия связана с объектами User и Game, поэтому на странице доступны
-данные игрока и игры: session.user.name, session.game.title.
-"""
+"""View-функции приложения gamesessions."""
 
 from django.conf import settings
 from django.http import HttpRequest, HttpResponse
@@ -37,10 +32,7 @@ def status_badge(session: GameSession) -> str:
 
 
 def sessions(request: HttpRequest) -> HttpResponse:
-    """Страница /sessions/: все сессии из data/sessions.json по датам.
-
-    Отменённые сессии тоже показываются: они остаются в истории.
-    """
+    """Страница /sessions/: все сессии из data/sessions.json по датам."""
     _, _, sessions_list = load_library(settings.DATA_DIR)
     rows = ""
     for session in sorted(sessions_list, key=lambda item: item.date):
@@ -72,10 +64,7 @@ def session_detail(
     request: HttpRequest,
     session_id: int,
 ) -> HttpResponse:
-    """Страница /sessions/<id>/: карточка сессии и прогресс игрока.
-
-    Если сессии с таким идентификатором нет, возвращается код 404.
-    """
+    """Страница /sessions/<id>/: карточка сессии и прогресс игрока."""
     _, _, sessions_list = load_library(settings.DATA_DIR)
     session = find_session_by_id(sessions_list, session_id)
     if session is None:

@@ -12,8 +12,6 @@ def main() -> None:
     """Выполнить команду управления, переданную в аргументах."""
     os.environ.setdefault("DJANGO_SETTINGS_MODULE", "gamelibrary.settings")
     try:
-        # Импорт внутри функции: так выводится понятное сообщение,
-        # если Django не установлен.
         # pylint: disable-next=import-outside-toplevel
         from django.core.management import execute_from_command_line
     except ImportError as exc:
