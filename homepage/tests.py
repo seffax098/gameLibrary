@@ -2,6 +2,7 @@
 
 from django.urls import resolve, reverse
 
+from gamelibrary import urls as gamelibrary_urls
 from homepage import views
 from homepage.testing import LibraryTestCase
 
@@ -47,6 +48,23 @@ class IndexPageTests(LibraryTestCase):
         """Заголовок вкладки экранируется."""
         html = views.page("<b>Игра</b>", "")
         self.assertIn("<title>&lt;b&gt;Игра&lt;/b&gt;</title>", html)
+
+    def test_unknown_url_shows_custom_404(self) -> None:
+        """Адрес без маршрута - собственная страница 404 проекта.
+
+        Тесты Django выполняются с DEBUG = False, поэтому срабатывает
+        обработчик handler404, а не отладочная страница.
+        """
+        response = self.client.get("/nonexistent/")
+        self.assertContains(response, "Страница не найдена", status_code=404)
+        self.assertContains(response, views.BOOTSTRAP_CSS, status_code=404)
+        self.assertContains(response, 'href="/"', status_code=404)
+
+    def test_handler404_is_configured(self) -> None:
+        """handler404 объявлен в корневом urls.py."""
+        self.assertEqual(
+            gamelibrary_urls.handler404, "homepage.views.page_not_found"
+        )
 
     def test_not_found_returns_404(self) -> None:
         """not_found() возвращает страницу ошибки с кодом 404."""

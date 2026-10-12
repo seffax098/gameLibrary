@@ -14,3 +14,5 @@ urlpatterns = [
     path("games/", include("games.urls")),
     path("sessions/", include("gamesessions.urls")),
 ]
+
+handler404 = "homepage.views.page_not_found"  # pylint: disable=invalid-name

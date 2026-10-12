@@ -151,6 +151,14 @@ def not_found(message: str, back_url: str, back_text: str) -> HttpResponse:
     return HttpResponse(page(message, content), status=404)
 
 
+def page_not_found(request: HttpRequest, exception: Exception) -> HttpResponse:
+    """Обработчик ошибки 404 для всего проекта (handler404)..
+    """
+    return not_found(
+        "Страница не найдена", reverse("index"), "← на главную"
+    )
+
+
 def table_section(heading: str, header: str, rows: str) -> str:
     """Вернуть раздел страницы: заголовок и таблицу в рамке.
 
