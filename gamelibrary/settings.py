@@ -1,7 +1,8 @@
 """Настройки Django-проекта gamelibrary.
 
 Файл создан командой django-admin startproject (Django 5.2) и
-дополнен настройками проекта: приложения, локализация, каталог данных.
+дополнен настройками проекта: приложения, шаблоны, локализация,
+каталог данных.
 
 Описание настроек:
 https://docs.djangoproject.com/en/5.2/topics/settings/
@@ -26,7 +27,7 @@ SECRET_KEY = (
 )
 
 # ВНИМАНИЕ: не включайте режим отладки на рабочем сервере!
-DEBUG = False
+DEBUG = True
 
 ALLOWED_HOSTS: list[str] = ["localhost", "127.0.0.1"]
 
@@ -61,7 +62,8 @@ ROOT_URLCONF = 'gamelibrary.urls'
 TEMPLATES = [
     {
         'BACKEND': 'django.template.backends.django.DjangoTemplates',
-        'DIRS': [],
+        # Шаблоны уровня проекта: base.html и общие фрагменты.
+        'DIRS': [BASE_DIR / 'templates'],
         'APP_DIRS': True,
         'OPTIONS': {
             'context_processors': [

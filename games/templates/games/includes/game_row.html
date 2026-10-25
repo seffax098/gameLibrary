@@ -1,0 +1,13 @@
+<tr>
+    <td class="text-muted">{{ game.id }}</td>
+    <td>
+        <a href="{% url 'games:detail' game.id %}" class="fw-medium">
+            {{ game.title|default:"Без названия" }}
+        </a>
+    </td>
+    <td>{{ game.genre }}</td>
+    <td>{{ game.platform }}</td>
+    <td>{{ game.release_year }}</td>
+    <td>{{ game.rating_label }}</td>
+    <td class="text-end">{{ played|floatformat:1 }} ч</td>
+</tr>

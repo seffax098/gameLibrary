@@ -1,0 +1,49 @@
+{% extends "base.html" %}
+
+{% block content %}
+    <section class="mb-5">
+        <h1 class="display-6 mb-3">Игровая библиотека</h1>
+        <p class="lead text-muted mb-4">
+            Учёт общей коллекции видеоигр: игры, игровые сессии и личный
+            прогресс прохождения каждого игрока.
+        </p>
+        <a href="{% url 'games:list' %}" class="btn btn-outline-secondary">
+            Игры
+        </a>
+        <a href="{% url 'gamesessions:list' %}" class="btn btn-outline-secondary">
+            Игровые сессии
+        </a>
+    </section>
+
+    <div class="row g-3 mb-5">
+        {% include "homepage/includes/stat_card.html" with label="Игр в библиотеке" value=stats.games %}
+        {% include "homepage/includes/stat_card.html" with label="Игроков" value=stats.users %}
+        {% include "homepage/includes/stat_card.html" with label="Активных сессий" value=stats.sessions %}
+        {% include "homepage/includes/stat_card.html" with label="Сыграно часов" value=stats.hours|floatformat:1 %}
+        {% include "homepage/includes/stat_card.html" with label="Средняя оценка" value=stats.average_rating|floatformat:1 %}
+    </div>
+
+    <div class="row g-4">
+        <div class="col-md-6">
+            <h2 class="h5 mb-3">Популярные игры</h2>
+            <ul class="panel plain-list list-unstyled">
+                {% for game, hours in stats.top %}
+                    {% url 'games:detail' game.id as game_url %}
+                    {% include "homepage/includes/ranking_item.html" with name=game.title url=game_url %}
+                {% empty %}
+                    <li class="text-muted">Сессий пока нет</li>
+                {% endfor %}
+            </ul>
+        </div>
+        <div class="col-md-6">
+            <h2 class="h5 mb-3">Самые активные игроки</h2>
+            <ul class="panel plain-list list-unstyled">
+                {% for user, hours in stats.players %}
+                    {% include "homepage/includes/ranking_item.html" with name=user.name url="" %}
+                {% empty %}
+                    <li class="text-muted">Сессий пока нет</li>
+                {% endfor %}
+            </ul>
+        </div>
+    </div>
+{% endblock %}

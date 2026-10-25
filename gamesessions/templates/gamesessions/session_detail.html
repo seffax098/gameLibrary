@@ -1,0 +1,61 @@
+{% extends "base.html" %}
+
+{% block title %}{% if session %}Сессия №{{ session.id }}{% else %}Сессия не найдена{% endif %} - {{ block.super }}{% endblock %}
+
+{% block content %}
+    {% url 'gamesessions:list' as sessions_url %}
+    {% if session %}
+        {% include "includes/back_link.html" with url=sessions_url text="Игровые сессии" %}
+        <h1 class="mb-4">Сессия №{{ session.id }}</h1>
+
+        <div class="row g-4">
+            <div class="col-lg-6">
+                <div class="panel p-4">
+                    <div class="row row-cols-2 g-4">
+                        <div class="col">
+                            <div class="fact-label">Игра</div>
+                            <div>
+                                <a href="{% url 'games:detail' session.game.id %}">
+                                    {{ session.game.title }}
+                                </a>
+                            </div>
+                        </div>
+                        <div class="col">
+                            <div class="fact-label">Игрок</div>
+                            <div>{{ session.user.name }}</div>
+                        </div>
+                        <div class="col">
+                            <div class="fact-label">Почта</div>
+                            <div>{{ session.user.email|default:"не указана" }}</div>
+                        </div>
+                        <div class="col">
+                            <div class="fact-label">Дата</div>
+                            <div>{{ session.date|date:"d.m.Y" }}</div>
+                        </div>
+                        <div class="col">
+                            <div class="fact-label">Сыграно</div>
+                            <div>{{ session.hours|floatformat:1 }} ч</div>
+                        </div>
+                        <div class="col">
+                            <div class="fact-label">Статус</div>
+                            <div>{% include "gamesessions/includes/session_status.html" %}</div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="col-lg-6">
+                <h2 class="h5 mb-3">Прогресс игрока в игре</h2>
+                <div class="panel p-3">
+                    {% include "games/includes/progress.html" %}
+                    <p class="text-muted small mt-3 mb-0">
+                        Прогресс считается по активным сессиям игрока:
+                        отменённая сессия в нём не учитывается.
+                    </p>
+                </div>
+            </div>
+        </div>
+    {% else %}
+        {% include "includes/not_found.html" with message="Сессия не найдена" details="Сессии с указанным идентификатором нет в истории." url=sessions_url text="к списку сессий" %}
+    {% endif %}
+{% endblock %}

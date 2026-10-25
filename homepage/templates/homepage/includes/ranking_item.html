@@ -1,0 +1,8 @@
+<li>
+    {% if url %}
+        <a href="{{ url }}">{{ name }}</a>
+    {% else %}
+        <span>{{ name }}</span>
+    {% endif %}
+    <span class="text-muted">{{ hours|floatformat:1 }} ч</span>
+</li>

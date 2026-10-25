@@ -1,0 +1,77 @@
+{% extends "base.html" %}
+
+{% block title %}{% if game %}{{ game.title }}{% else %}Игра не найдена{% endif %} - {{ block.super }}{% endblock %}
+
+{% block content %}
+    {% url 'games:list' as games_url %}
+    {% if game %}
+        {% include "includes/back_link.html" with url=games_url text="Игры" %}
+        <h1 class="mb-4">{{ game.title }}</h1>
+
+        <div class="row g-4">
+            <div class="col-lg-5">
+                <div class="panel p-4">
+                    <div class="row row-cols-2 g-4">
+                        <div class="col">
+                            <div class="fact-label">Жанр</div>
+                            <div>{{ game.genre }}</div>
+                        </div>
+                        <div class="col">
+                            <div class="fact-label">Платформа</div>
+                            <div>{{ game.platform }}</div>
+                        </div>
+                        <div class="col">
+                            <div class="fact-label">Год выпуска</div>
+                            <div>{{ game.release_year }}, {{ game.era }}</div>
+                        </div>
+                        <div class="col">
+                            <div class="fact-label">Время прохождения</div>
+                            <div>{{ game.hours_total|floatformat:0 }} ч</div>
+                        </div>
+                        <div class="col">
+                            <div class="fact-label">Оценка</div>
+                            <div>{{ game.rating_label }}</div>
+                        </div>
+                        <div class="col">
+                            <div class="fact-label">ID</div>
+                            <div>{{ game.id }}</div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="col-lg-7">
+                <h2 class="h5 mb-3">Прогресс игроков</h2>
+                {% for progress in players %}
+                    <div class="panel p-3 mb-3">
+                        <div class="fw-semibold mb-2">{{ progress.user.name }}</div>
+                        {% include "games/includes/progress.html" %}
+                    </div>
+                {% empty %}
+                    <p class="text-muted">Игроков пока нет.</p>
+                {% endfor %}
+
+                <h2 class="h5 mt-4 mb-3">
+                    Активные сессии
+                    <span class="text-muted fw-normal">{{ sessions|length }}</span>
+                </h2>
+                <ul class="panel plain-list list-unstyled">
+                    {% for session in sessions %}
+                        <li>
+                            <a href="{% url 'gamesessions:detail' session.id %}">
+                                {{ session.date|date:"d.m.Y" }}
+                            </a>
+                            <span class="text-muted">
+                                {{ session.user.name }}, {{ session.hours|floatformat:1 }} ч
+                            </span>
+                        </li>
+                    {% empty %}
+                        <li class="text-muted">Сессий пока нет</li>
+                    {% endfor %}
+                </ul>
+            </div>
+        </div>
+    {% else %}
+        {% include "includes/not_found.html" with message="Игра не найдена" details="Игры с указанным идентификатором нет в библиотеке." url=games_url text="к списку игр" %}
+    {% endif %}
+{% endblock %}

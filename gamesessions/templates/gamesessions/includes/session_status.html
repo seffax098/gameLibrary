@@ -1,0 +1,9 @@
+{% if session.is_cancelled %}
+    <span class="badge rounded-pill status-badge status-muted session-status session-status-cancelled">
+        отменена
+    </span>
+{% else %}
+    <span class="badge rounded-pill status-badge status-completed session-status session-status-active">
+        активна
+    </span>
+{% endif %}
