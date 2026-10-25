@@ -85,7 +85,10 @@ class Game:
 
     @classmethod
     def from_data(cls, data: dict) -> "Game":
-        """Создать игру из набора данных, прочитанного из JSON."""
+        """Создать игру из набора данных JSON или строки базы данных.
+
+        Отсутствующая оценка (в базе - NULL) считается нулевой.
+        """
         return cls(
             int(data["id"]),
             data["title"],
@@ -93,7 +96,7 @@ class Game:
             data["platform"],
             int(data["release_year"]),
             float(data["hours_total"]),
-            int(data.get("rating", 0)),
+            int(data.get("rating") or 0),
         )
 
     def to_data(self) -> dict:
@@ -140,15 +143,24 @@ class Game:
 
         Метод развивает функцию get_rating_label() сценария ПР1.
         """
-        if not self.rating:
-            return "не выставлена"
-        if self.rating >= 9:
-            return f"{self.rating}/10 - шедевр"
-        if self.rating >= 7:
-            return f"{self.rating}/10 - хорошая игра"
-        if self.rating >= 5:
-            return f"{self.rating}/10 - средняя игра"
-        return f"{self.rating}/10 - разочарование"
+        return describe_rating(self.rating)
+
+
+def describe_rating(rating: int | None) -> str:
+    """Вернуть текстовое описание оценки; 0 и None - «не выставлена».
+
+    Функция отделена от класса Game, чтобы описывать и оценку из
+    строки базы данных (фильтр шаблона rating_label).
+    """
+    if not rating:
+        return "не выставлена"
+    if rating >= 9:
+        return f"{rating}/10 - шедевр"
+    if rating >= 7:
+        return f"{rating}/10 - хорошая игра"
+    if rating >= 5:
+        return f"{rating}/10 - средняя игра"
+    return f"{rating}/10 - разочарование"
 
 
 def next_game_id(games: list[Game]) -> int:

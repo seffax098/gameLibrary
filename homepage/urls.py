@@ -8,4 +8,5 @@ app_name = "homepage"  # pylint: disable=invalid-name
 
 urlpatterns = [
     path("", views.index, name="index"),
+    path("statistics/", views.statistics, name="statistics"),
 ]

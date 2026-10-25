@@ -30,7 +30,12 @@ class IndexPageTests(LibraryTestCase):
         self.assertContains(response, "Популярные игры")
         self.assertContains(response, "Иван Петров")
         self.assertContains(response, "4,5 ч")
-        self.assertEqual(response.context["stats"]["games"], 2)
+        summary = response.context["summary"]
+        self.assertEqual(summary["games_count"], 2)
+        self.assertEqual(summary["sessions_count"], 1)
+        self.assertEqual(summary["cancelled_count"], 1)
+        # AVG() не учитывает игру без оценки (NULL).
+        self.assertEqual(summary["average_rating"], 10)
 
     def test_index_extends_base_template(self) -> None:
         """Главная наследует base.html и включает навигацию."""
@@ -52,7 +57,12 @@ class IndexPageTests(LibraryTestCase):
     def test_navigation_uses_named_urls(self) -> None:
         """Навигация ведёт во все разделы и выделяет текущий."""
         response = self.client.get(reverse("games:list"))
-        for name in ("homepage:index", "games:list", "gamesessions:list"):
+        for name in (
+            "homepage:index",
+            "games:list",
+            "gamesessions:list",
+            "homepage:statistics",
+        ):
             self.assertContains(response, f'href="{reverse(name)}"')
         self.assertContains(response, 'aria-current="page"', count=1)
         self.assertContains(
@@ -69,10 +79,71 @@ class IndexPageTests(LibraryTestCase):
         self.assertContains(response, BOOTSTRAP_CSS, status_code=404)
         self.assertContains(response, 'href="/"', status_code=404)
 
+    def test_missing_database_is_reported(self) -> None:
+        """Без файла базы - понятное сообщение о команде импорта."""
+        with self.settings(LIBRARY_DB="missing.sqlite"):
+            with self.assertRaisesMessage(
+                FileNotFoundError, "python -m db.import_json"
+            ):
+                self.client.get("/")
+
     def test_handler404_is_configured(self) -> None:
         """handler404 объявлен в корневом urls.py."""
         self.assertEqual(
             gamelibrary_urls.handler404, "homepage.views.page_not_found"
+        )
+
+
+class StatisticsPageTests(LibraryTestCase):
+    """Страница /statistics/: агрегатные запросы и группировка."""
+
+    def test_statistics_url(self) -> None:
+        """Адрес связан с view-функцией statistics()."""
+        self.assertEqual(reverse("homepage:statistics"), "/statistics/")
+        self.assertEqual(resolve("/statistics/").func, views.statistics)
+
+    def test_statistics_page(self) -> None:
+        """Группы по жанрам, платформам и игрокам выводятся на странице."""
+        response = self.client.get("/statistics/")
+        self.assertTemplateUsed(response, "homepage/statistics.html")
+        self.assertContains(response, "<title>Статистика - Игровая")
+        self.assertContains(response, "Не указан")
+        self.assertContains(response, "нет оценок")
+        platforms = response.context["platforms"]
+        self.assertEqual(len(platforms), 1)
+        self.assertEqual(platforms[0]["games_count"], 2)
+        self.assertEqual(platforms[0]["first_year"], 2001)
+
+    def test_player_without_active_sessions_is_listed(self) -> None:
+        """LEFT JOIN оставляет Анну: её единственная сессия отменена."""
+        response = self.client.get("/statistics/")
+        players = {row["name"]: row for row in response.context["players"]}
+        self.assertEqual(players["Анна Смирнова"]["sessions_count"], 0)
+        self.assertEqual(players["Анна Смирнова"]["hours"], 0)
+        self.assertEqual(players["Иван Петров"]["hours"], 4.5)
+
+    def test_having_threshold(self) -> None:
+        """HAVING отбирает игры по сумме часов после группировки."""
+        response = self.client.get("/statistics/")
+        self.assertEqual(response.context["popular"], [])
+        self.assertContains(response, "Нет игр, в которые сыграно")
+        response = self.client.get("/statistics/", {"min_hours": "4"})
+        titles = [row["title"] for row in response.context["popular"]]
+        self.assertEqual(titles, ["The Witcher 3"])
+
+    def test_wrong_threshold_uses_default(self) -> None:
+        """Нечисловой порог заменяется значением по умолчанию."""
+        response = self.client.get("/statistics/", {"min_hours": "x"})
+        self.assertEqual(response.context["min_hours"], 10.0)
+
+    def test_statistics_is_active_in_navigation(self) -> None:
+        """В меню выделен пункт «Статистика», а не «Главная»."""
+        response = self.client.get("/statistics/")
+        self.assertContains(response, 'aria-current="page"', count=1)
+        self.assertContains(
+            response,
+            'class="nav-link active" aria-current="page"\n'
+            '                        href="/statistics/"',
         )
 
 

@@ -1,11 +1,23 @@
 """Настройка pytest: корень проекта доступен для импорта модулей.
 
-Здесь же определены общие объекты для тестов: пользователи и игры.
+Здесь же определены общие объекты для тестов: пользователи, игры и
+база SQLite с данными проекта.
 """
+
+from pathlib import Path
 
 import pytest
 
+from db.import_json import DATA_DIR, import_library
 from models import Game, User
+
+
+@pytest.fixture
+def db_path(tmp_path: Path) -> Path:
+    """Временная база SQLite с данными проекта из каталога data/."""
+    path = tmp_path / "library.sqlite"
+    import_library(path, DATA_DIR)
+    return path
 
 
 @pytest.fixture

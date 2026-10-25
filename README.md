@@ -6,14 +6,16 @@ Github - https://github.com/seffax098/gameLibrary
 игровые сессии, личный прогресс прохождения каждого игрока, поиск,
 сортировка и статистика библиотеки. Консольная версия (ПР3) дополнена
 веб-интерфейсом на Django (ПР5), который в ПР6 переведён на шаблоны
-Django и собственные статические файлы.
+Django и собственные статические файлы, а в ПР7 получает данные из
+базы SQLite SQL-запросами.
 
 ## Используемые технологии
 
 - Python 3.10+, Django 5.2;
+- SQLite, SQL, модуль `sqlite3` стандартной библиотеки Python;
 - Django Template Language (DTL), HTML5, CSS3, JavaScript;
 - Bootstrap 5.3 (CDN);
-- JSON для хранения данных;
+- JSON — исходные данные и хранилище консольной версии;
 - pytest и `django.test`, flake8, mypy (`django-stubs`), pylint.
 
 ## Предметная область
@@ -39,31 +41,35 @@ Django и собственные статические файлы.
 | URL | Имя маршрута | View-функция | Шаблон |
 |---|---|---|---|
 | `/` | `homepage:index` | `homepage.views.index()` | `homepage/index.html` |
+| `/statistics/` | `homepage:statistics` | `homepage.views.statistics()` | `homepage/statistics.html` |
 | `/games/` | `games:list` | `games.views.games()` | `games/game_list.html` |
+| `/games/search/` | `games:search` | `games.views.game_search()` | `games/game_search.html` |
+| `/games/unplayed/` | `games:unplayed` | `games.views.unplayed_games()` | `games/game_unplayed.html` |
 | `/games/<int:game_id>/` | `games:detail` | `games.views.game_detail()` | `games/game_detail.html` |
 | `/sessions/` | `gamesessions:list` | `gamesessions.views.sessions()` | `gamesessions/session_list.html` |
 | `/sessions/<int:session_id>/` | `gamesessions:detail` | `gamesessions.views.session_detail()` | `gamesessions/session_detail.html` |
 
 - главная — сводка библиотеки, популярные игры и самые активные игроки;
+- статистика — жанры, платформы, активность игроков, игры с заданным
+  числом сыгранных часов;
+- поиск игр — по платформе, году выпуска и минимальной оценке;
+- «Что поиграть» — игры, в которые выбранный игрок ещё не играл;
 - карточка игры — характеристики, прогресс каждого игрока, активные сессии;
 - карточка сессии — связанные игра и игрок, прогресс игрока в игре.
 
-Приложения: `homepage` (главная, страница 404, статические файлы),
-`games`, `gamesessions` (название `sessions` занято встроенным
+Навигация: Главная | Игры | Игровые сессии | Статистика. Поиск игр и
+«Что поиграть» — функции раздела «Игры», ссылки на них стоят на
+странице списка игр. Все ссылки строятся по именам маршрутов.
+
+Приложения: `homepage` (главная, статистика, страница 404, статические
+файлы), `games`, `gamesessions` (название `sessions` занято встроенным
 `django.contrib.sessions`). Изменение данных (добавление игр, запись и
 отмена сессий) пока доступно только в консольной версии — для веба
 нужны формы.
 
-View-функции не формируют HTML: они загружают данные функциями ПР3,
-собирают словарь контекста и вызывают `render()`. Функция `page()` из
-ПР5, собиравшая HTML в Python-строке, удалена.
-
-```python
-def sessions(request):
-    _, _, sessions_list = load_library(settings.DATA_DIR)
-    context = {"sessions": sorted(sessions_list, key=lambda item: item.date)}
-    return render(request, "gamesessions/session_list.html", context)
-```
+View-функции не формируют HTML: они выполняют SQL-запрос к базе SQLite,
+передают результат в контекст и вызывают `render()` (подробнее — в
+разделе «База данных SQLite»).
 
 ### Шаблоны Django
 
@@ -72,9 +78,12 @@ templates/                      — шаблоны уровня проекта (
 ├── base.html                   — базовый шаблон всех страниц
 ├── 404.html                    — страница «Страница не найдена»
 └── includes/                   — navigation.html, back_link.html, not_found.html
-homepage/templates/homepage/    — index.html, includes/stat_card.html, ranking_item.html
+homepage/templates/homepage/    — index.html, statistics.html,
+                                  includes/stat_card.html, ranking_item.html
 games/templates/games/          — game_list.html, game_detail.html,
+                                  game_search.html, game_unplayed.html,
                                   includes/game_row.html, progress.html
+games/templatetags/             — game_filters.py: фильтр rating_label
 gamesessions/templates/gamesessions/
                                 — session_list.html, session_detail.html,
                                   includes/session_status.html
@@ -102,8 +111,11 @@ gamesessions/templates/gamesessions/
 |---|---|
 | `length` | `Всего игр: {{ games\|length }}` |
 | `default` | `{{ game.title\|default:"Без названия" }}` |
-| `date` | `{{ session.date\|date:"d.m.Y" }}` |
 | `floatformat` | `{{ session.hours\|floatformat:1 }} ч` |
+| `rating_label` (свой) | `{{ game.rating\|rating_label }}` → «10/10 - шедевр», для `NULL` — «не выставлена» |
+
+Даты сессий хранятся в базе строкой `YYYY-MM-DD` и форматируются в
+запросе: `strftime('%d.%m.%Y', session_date) AS played_on`.
 
 ### Статические файлы
 
@@ -129,11 +141,193 @@ homepage/static/homepage/
 
 ## Хранение данных
 
-Данные хранятся в JSON-файлах `data/games.json`, `data/users.json`,
-`data/sessions.json` и загружаются модулем `storage.py`
-(`load_library()`) в объекты классов из пакета `models/`. Сессии
-хранят ссылки идентификаторами `user_id` и `game_id`. Django ORM и база
-данных пока не используются.
+Исходные данные лежат в JSON-файлах `data/games.json`, `data/users.json`,
+`data/sessions.json`. Консольная версия по-прежнему работает с ними
+через модуль `storage.py` (`load_library()`, объекты из пакета
+`models/`). Веб-интерфейс с ПР7 читает данные из базы SQLite
+`data/gamelibrary.sqlite`, куда они переносятся из JSON скриптом
+`db/import_json.py`.
+
+```text
+до ПР7:    JSON → storage.py → объекты Python → view → шаблон
+после ПР7: JSON ──(db/import_json.py)──→ SQLite
+           SQLite → SQL → sqlite3 (sqlite3.Row) → view → context → шаблон
+```
+
+## База данных SQLite (ПР7)
+
+### Структура
+
+Сущности предметной области — игра, пользователь, игровая сессия —
+представлены тремя таблицами. Связи: у игры и у пользователя может
+быть много сессий, каждая сессия относится к одному пользователю и
+одной игре.
+
+Таблица `games` — игры библиотеки:
+
+| Поле | Тип | Назначение |
+|---|---|---|
+| `id` | `INTEGER` | первичный ключ |
+| `title` | `TEXT NOT NULL` | название |
+| `genre` | `TEXT NOT NULL` | жанр |
+| `platform` | `TEXT NOT NULL` | платформа |
+| `release_year` | `INTEGER NOT NULL` | год выпуска |
+| `hours_total` | `REAL NOT NULL` | примерное время прохождения, ч |
+| `rating` | `INTEGER` | оценка 1–10; `NULL` — не выставлена |
+
+Таблица `users` — игроки:
+
+| Поле | Тип | Назначение |
+|---|---|---|
+| `id` | `INTEGER` | первичный ключ |
+| `name` | `TEXT NOT NULL` | имя |
+| `email` | `TEXT NOT NULL UNIQUE` | почта, уникальна |
+
+Таблица `sessions` — игровые сессии:
+
+| Поле | Тип | Назначение |
+|---|---|---|
+| `id` | `INTEGER` | первичный ключ |
+| `user_id` | `INTEGER NOT NULL` | внешний ключ → `users.id` |
+| `game_id` | `INTEGER NOT NULL` | внешний ключ → `games.id` |
+| `session_date` | `TEXT NOT NULL` | дата `YYYY-MM-DD` (сортируется как строка) |
+| `hours` | `REAL NOT NULL` | сыграно часов |
+| `is_cancelled` | `INTEGER NOT NULL DEFAULT 0` | 0 — активна, 1 — отменена |
+
+```text
+users                 sessions                  games
+id PK  ◄────────────  user_id FK
+                      game_id FK  ────────────► id PK
+```
+
+- **Первичные ключи** `id` однозначно определяют запись и позволяют
+  ссылаться на неё из других таблиц.
+- **Внешние ключи** `sessions.user_id` и `sessions.game_id` не дают
+  записать сессию несуществующего игрока или игры. SQLite проверяет их
+  только после `PRAGMA foreign_keys = ON` — она выполняется при каждом
+  подключении в `db/database.py`.
+- **Отсутствие значения** допустимо только для оценки игры: в JSON
+  «не выставлена» записывалось как 0, в базе это `NULL`. Поэтому
+  `AVG(rating)` сам пропускает игры без оценки.
+
+### Файлы
+
+```text
+sql/schema.sql        — CREATE TABLE IF NOT EXISTS для трёх таблиц
+sql/queries.sql       — 18 проверенных запросов проекта с комментариями
+db/database.py        — get_connection(), create_schema(), fetch_all(), fetch_one()
+db/import_json.py     — перенос JSON → SQLite
+data/gamelibrary.sqlite — файл базы данных
+```
+
+`db/database.py` не зависит от Django. Путь к базе для веб-интерфейса
+задаёт настройка `LIBRARY_DB` в `settings.py` (тесты подменяют её
+временной базой). Служебная база Django `db.sqlite3` — отдельный файл.
+
+### Создание базы и перенос данных
+
+```text
+python -m db.import_json
+```
+
+Скрипт создаёт таблицы по `sql/schema.sql`, очищает их и переносит
+данные из JSON (`executemany()` с параметрами `?`), затем сравнивает
+число записей:
+
+```text
+games: JSON 4 -> SQLite 4
+users: JSON 2 -> SQLite 2
+sessions: JSON 6 -> SQLite 6
+```
+
+- порядок импорта: `games` и `users`, затем `sessions` — сессии
+  ссылаются на них внешними ключами; очистка идёт в обратном порядке;
+- преобразования: оценка `0` → `NULL`, `is_cancelled` `true/false` →
+  `1/0`, поле `date` → `session_date`;
+- весь перенос — одна транзакция: `commit()` при успехе, `rollback()`
+  при ошибке, база остаётся прежней;
+- скрипт можно запускать повторно — база заново совпадёт с JSON.
+
+
+### SQL-запросы
+
+Все запросы сохранены в `sql/queries.sql` с комментарием о назначении и
+странице, где используются. Проверка в SQLite CLI:
+
+```text
+sqlite3 -header -column data/gamelibrary.sqlite < sql/queries.sql
+```
+
+| № | Запрос | Вид | Страница |
+|---|---|---|---|
+| 1 | игры с часами всех игроков (`LEFT JOIN`, `SUM`, `COALESCE`) | список, JOIN, агрегат, GROUP BY | `/games/` |
+| 2 | карточка игры по `id` | WHERE | `/games/<id>/` |
+| 3 | часы каждого игрока в игре | JOIN, агрегат, GROUP BY | `/games/<id>/` |
+| 4 | активные сессии игры с именами игроков | JOIN, WHERE | `/games/<id>/` |
+| 5 | платформы без повторов (`DISTINCT`) | список | `/games/search/` |
+| 6 | поиск по платформе, году и оценке | WHERE (несколько условий) | `/games/search/` |
+| 7 | список игроков | список | `/games/unplayed/` |
+| 8 | игры, в которые игрок не играл (`NOT IN`) | WHERE, подзапрос | `/games/unplayed/` |
+| 9 | все сессии с игроком и игрой | список, JOIN | `/sessions/` |
+| 10 | карточка сессии с игроком и игрой | JOIN, WHERE | `/sessions/<id>/` |
+| 11 | часы игрока в игре | агрегат, WHERE | `/sessions/<id>/` |
+| 12 | сводка: `COUNT`, `SUM`, `AVG` | агрегат | `/` |
+| 13 | три популярные игры (`LIMIT 3`) | JOIN, агрегат, GROUP BY | `/` |
+| 14 | три самых активных игрока | JOIN, агрегат, GROUP BY | `/` |
+| 15 | игры и средняя оценка по жанрам | агрегат, GROUP BY | `/statistics/` |
+| 16 | игры и годы выпуска по платформам (`MIN`, `MAX`) | агрегат, GROUP BY | `/statistics/` |
+| 17 | активность игроков (`COUNT(DISTINCT)`) | JOIN, агрегат, GROUP BY | `/statistics/` |
+| 18 | игры, в которые сыграно ≥ N часов | JOIN, GROUP BY, HAVING | `/statistics/` |
+
+Соответствие операциям прежней реализации: поиск в Python → `WHERE`,
+`sorted()` → `ORDER BY`, срез списка → `LIMIT`, `sum()`/`len()` →
+`SUM()`/`COUNT()`, подсчёт по словарю в `stats.py` → `GROUP BY`.
+
+### Получение данных в Django
+
+View-функции передают SQL-запрос и параметры в `fetch_all()` или
+`fetch_one()` из `db/database.py`. Там соединение настраивается
+`conn.row_factory = sqlite3.Row`, поэтому к полям результата можно
+обращаться по имени: `row["title"]` в Python, `{{ game.title }}` в
+шаблоне. Строки передаются в шаблон через контекст:
+
+```python
+def unplayed_games(request):
+    ...
+    games_list = fetch_all(
+        settings.LIBRARY_DB,
+        """
+        SELECT games.id, games.title, ...
+        FROM games
+        WHERE games.id NOT IN (
+            SELECT sessions.game_id
+            FROM sessions
+            WHERE sessions.user_id = ?
+                AND sessions.is_cancelled = 0
+        )
+        ORDER BY games.title
+        """,
+        [user_id],
+    )
+    return render(request, "games/game_unplayed.html", {"games": games_list, ...})
+```
+
+- Значения от пользователя (платформа, год, оценка, игрок, порог
+  часов) передаются **параметрами `?`**, а не f-строками или
+  конкатенацией: значение не становится частью текста SQL и не может
+  его изменить. Например, `?platform=' OR 1=1 --` просто ничего не
+  находит.
+- Нечисловые значения параметров (`?year_from=abc`) не вызывают ошибку:
+  применяется значение по умолчанию.
+- В карточках игры и сессии строки превращаются в объекты `Game`,
+  `User`, `Progress`: эпоху игры, описание оценки, процент и статус
+  прохождения по-прежнему вычисляет объектная модель.
+- Пустой результат запроса — не ошибка: шаблоны выводят сообщение через
+  `{% empty %}`. Если файла базы нет, страница сообщает, что нужно
+  выполнить `python -m db.import_json`, а не создаёт пустую базу.
+- Изменения в базе сразу видны на сайте: после
+  `UPDATE games SET title = 'Hades II' WHERE id = 2;` в `sqlite3`
+  новое название появится на всех страницах после обновления.
 
 ## Структура проекта
 
@@ -141,17 +335,19 @@ homepage/static/homepage/
 gameLibrary/
 ├── manage.py
 ├── main.py           — консольная версия
-├── storage.py        — загрузка и сохранение JSON
-├── stats.py          — статистика библиотеки
+├── storage.py        — загрузка и сохранение JSON (консольная версия)
+├── stats.py          — статистика библиотеки (консольная версия)
 ├── utils.py          — безопасный ввод для консоли
 ├── gamelibrary/      — настройки Django-проекта и корневой urls.py
 ├── templates/        — base.html, 404.html, includes/
-├── homepage/         — главная страница, static/, templates/
-├── games/            — страницы игр
+├── homepage/         — главная, статистика, static/, templates/
+├── games/            — страницы игр, поиск, «Что поиграть», templatetags/
 ├── gamesessions/     — страницы игровых сессий
 ├── models/           — классы Game, User, GameSession, Progress
-├── data/             — JSON-файлы с данными
-└── tests/            — тесты предметной области (pytest)
+├── db/               — подключение к SQLite и импорт из JSON
+├── sql/              — schema.sql и queries.sql
+├── data/             — JSON-файлы и база gamelibrary.sqlite
+└── tests/            — тесты предметной области и базы данных (pytest)
 ```
 
 ## Запуск
@@ -161,27 +357,34 @@ python -m venv .venv
 .venv\Scripts\activate
 pip install -r requirements.txt
 python manage.py migrate
+python -m db.import_json
 python manage.py runserver
 ```
 
 Веб-интерфейс: http://127.0.0.1:8000/. Консольная версия:
-`python main.py`. Обе версии работают с одними файлами `data/*.json`.
+`python main.py` — она изменяет JSON-файлы; чтобы перенести изменения
+на сайт, повторите `python -m db.import_json`.
 
 ## Тесты и проверка кода
 
 ```text
 python manage.py check
 python manage.py test     — тесты веб-страниц
-pytest -v                 — тесты предметной области
-flake8 .
+pytest -v                 — тесты предметной области и базы данных
+flake8 . --extend-exclude=venv
 mypy .
 python manage.py findstatic homepage/img/logo.png
 ```
 
-Тесты страниц используют временный каталог с тестовыми данными и
-проверяют маршруты и пространства имён, используемые шаблоны и контекст,
-коды 200 и 404, пустые коллекции, экранирование и подключение
-статических файлов.
+Тесты страниц создают временные JSON-файлы, переносят их во временную
+базу SQLite тем же `import_library()` и проверяют маршруты и
+пространства имён, используемые шаблоны и контекст, коды 200 и 404,
+пустые результаты, фильтрацию `WHERE`/`HAVING`, передачу значений
+параметрами, экранирование и подключение статических файлов.
+
+Тесты `tests/test_database.py` проверяют схему и внешние ключи, импорт
+(число записей, преобразование значений, повторный запуск, откат при
+ошибке) и выполняют каждый запрос из `sql/queries.sql`.
 
 ## Развитие проекта
 
@@ -189,12 +392,16 @@ python manage.py findstatic homepage/img/logo.png
   объектной модели;
 - **ПР5** — веб-интерфейс на Django: проект, приложения, маршруты, views;
 - **ПР6** — шаблоны Django, контекст, фильтры, пространства имён URL,
-  собственные CSS, JavaScript и изображение.
+  собственные CSS, JavaScript и изображение;
+- **ПР7** — база данных SQLite: схема с первичными и внешними ключами,
+  перенос данных из JSON, 18 SQL-запросов (`WHERE`, `JOIN`, агрегатные
+  функции, `GROUP BY`, `HAVING`), страницы сайта получают данные из
+  базы; добавлены поиск игр, «Что поиграть» и статистика.
 
 Коммиты практических работ начинаются с метки номера работы, например
-`PR6:`.
+`PR7:`.
 
-Не реализовано: Django ORM и база данных, формы Django, вход
-пользователей. Следующие этапы — перенос данных из JSON в базу данных и
-Django ORM, формы для добавления игр и записи сессий, аутентификация,
+Не реализовано: Django ORM, формы Django, вход пользователей; изменение
+данных через сайт. Следующие этапы — переход от SQL-запросов к моделям
+Django и ORM, формы для добавления игр и записи сессий, аутентификация,
 API.

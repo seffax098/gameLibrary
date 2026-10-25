@@ -1,0 +1,125 @@
+{% extends "base.html" %}
+
+{% block title %}Статистика - {{ block.super }}{% endblock %}
+
+{% block content %}
+    <h1 class="mb-4">Статистика библиотеки</h1>
+
+    <div class="row g-4 mb-5">
+        <div class="col-lg-6">
+            <h2 class="h5 mb-3">Жанры</h2>
+            <div class="panel overflow-hidden">
+                <table class="table align-middle">
+                    <thead>
+                        <tr>
+                            <th>Жанр</th>
+                            <th class="text-end">Игр</th>
+                            <th class="text-end">Средняя оценка</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for item in genres %}
+                            <tr>
+                                <td>{{ item.genre }}</td>
+                                <td class="text-end">{{ item.games_count }}</td>
+                                <td class="text-end">{{ item.average_rating|floatformat:1|default:"нет оценок" }}</td>
+                            </tr>
+                        {% empty %}
+                            <tr><td colspan="3" class="text-muted">Игр пока нет.</td></tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+
+        <div class="col-lg-6">
+            <h2 class="h5 mb-3">Платформы</h2>
+            <div class="panel overflow-hidden">
+                <table class="table align-middle">
+                    <thead>
+                        <tr>
+                            <th>Платформа</th>
+                            <th class="text-end">Игр</th>
+                            <th class="text-end">Годы выпуска</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for item in platforms %}
+                            <tr>
+                                <td>{{ item.platform }}</td>
+                                <td class="text-end">{{ item.games_count }}</td>
+                                <td class="text-end">
+                                    {% if item.first_year == item.last_year %}
+                                        {{ item.first_year }}
+                                    {% else %}
+                                        {{ item.first_year }}–{{ item.last_year }}
+                                    {% endif %}
+                                </td>
+                            </tr>
+                        {% empty %}
+                            <tr><td colspan="3" class="text-muted">Игр пока нет.</td></tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+
+    <h2 class="h5 mb-3">Активность игроков</h2>
+    <div class="panel overflow-hidden mb-5">
+        <div class="table-responsive">
+            <table class="table align-middle">
+                <thead>
+                    <tr>
+                        <th>Игрок</th>
+                        <th class="text-end">Активных сессий</th>
+                        <th class="text-end">Разных игр</th>
+                        <th class="text-end">Сыграно</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for player in players %}
+                        <tr>
+                            <td>{{ player.name }}</td>
+                            <td class="text-end">{{ player.sessions_count }}</td>
+                            <td class="text-end">{{ player.games_count }}</td>
+                            <td class="text-end">{{ player.hours|floatformat:1 }} ч</td>
+                        </tr>
+                    {% empty %}
+                        <tr><td colspan="4" class="text-muted">Игроков пока нет.</td></tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+
+    <div class="d-flex flex-wrap justify-content-between align-items-end gap-3 mb-3">
+        <h2 class="h5 mb-0">Популярные игры</h2>
+        <form method="get" class="d-flex align-items-center gap-2">
+            <label for="min_hours" class="text-muted small text-nowrap">Сыграно не меньше, ч</label>
+            <input
+                type="number"
+                id="min_hours"
+                name="min_hours"
+                class="form-control form-control-sm"
+                min="0"
+                step="0.5"
+                style="width: 6rem"
+                value="{{ min_hours|stringformat:'g' }}"
+            >
+            <button type="submit" class="btn btn-sm btn-outline-secondary">Показать</button>
+        </form>
+    </div>
+    <ul class="panel plain-list list-unstyled">
+        {% for game in popular %}
+            <li>
+                <a href="{% url 'games:detail' game.id %}">{{ game.title }}</a>
+                <span class="text-muted">
+                    {{ game.hours|floatformat:1 }} ч, сессий: {{ game.sessions_count }}
+                </span>
+            </li>
+        {% empty %}
+            <li class="text-muted">Нет игр, в которые сыграно не меньше {{ min_hours|floatformat }} ч.</li>
+        {% endfor %}
+    </ul>
+{% endblock %}

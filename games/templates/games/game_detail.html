@@ -59,10 +59,10 @@
                     {% for session in sessions %}
                         <li>
                             <a href="{% url 'gamesessions:detail' session.id %}">
-                                {{ session.date|date:"d.m.Y" }}
+                                {{ session.played_on }}
                             </a>
                             <span class="text-muted">
-                                {{ session.user.name }}, {{ session.hours|floatformat:1 }} ч
+                                {{ session.user_name }}, {{ session.hours|floatformat:1 }} ч
                             </span>
                         </li>
                     {% empty %}

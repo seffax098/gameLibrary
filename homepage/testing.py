@@ -7,6 +7,7 @@ from datetime import date
 
 from django.test import SimpleTestCase, override_settings
 
+from db.import_json import import_library
 from models import Game, GameSession, User
 from models.games import add_game
 from models.sessions import log_session
@@ -15,11 +16,15 @@ from storage import save_games, save_sessions, save_users
 
 
 class LibraryTestCase(SimpleTestCase):
-    """Базовый класс тестов страниц с временным DATA_DIR."""
+    """Базовый класс тестов страниц с временной базой SQLite.
+
+    Тестовые данные записываются в JSON-файлы и переносятся в базу тем
+    же скриптом импорта, что и данные проекта.
+    """
 
     @classmethod
     def setUpClass(cls) -> None:
-        """Создать JSON-файлы и включить подмену настроек."""
+        """Создать JSON-файлы и базу, включить подмену настроек."""
         data_dir = tempfile.mkdtemp()
         cls.addClassCleanup(shutil.rmtree, data_dir)
 
@@ -40,8 +45,12 @@ class LibraryTestCase(SimpleTestCase):
         save_games(games, os.path.join(data_dir, "games.json"))
         save_users(users, os.path.join(data_dir, "users.json"))
         save_sessions(sessions, os.path.join(data_dir, "sessions.json"))
+        db_path = os.path.join(data_dir, "gamelibrary.sqlite")
+        import_library(db_path, data_dir)
 
-        data_settings = override_settings(DATA_DIR=data_dir)
+        data_settings = override_settings(
+            DATA_DIR=data_dir, LIBRARY_DB=db_path
+        )
         data_settings.enable()
         cls.addClassCleanup(data_settings.disable)
         super().setUpClass()

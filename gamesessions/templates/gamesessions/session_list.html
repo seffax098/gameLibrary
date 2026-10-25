@@ -38,11 +38,11 @@
                                     №{{ session.id }}
                                 </a>
                             </td>
-                            <td>{{ session.date|date:"d.m.Y" }}</td>
-                            <td>{{ session.user.name }}</td>
+                            <td>{{ session.played_on }}</td>
+                            <td>{{ session.user_name }}</td>
                             <td>
-                                <a href="{% url 'games:detail' session.game.id %}">
-                                    {{ session.game.title }}
+                                <a href="{% url 'games:detail' session.game_id %}">
+                                    {{ session.game_title }}
                                 </a>
                             </td>
                             <td class="text-end">{{ session.hours|floatformat:1 }} ч</td>

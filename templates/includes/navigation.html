@@ -1,5 +1,5 @@
 {% load static %}
-{% with section=request.resolver_match.namespace %}
+{% with section=request.resolver_match.namespace view=request.resolver_match.view_name %}
     <nav class="navbar navbar-expand site-nav">
         <div class="container flex-wrap">
             <a class="navbar-brand" href="{% url 'homepage:index' %}">
@@ -10,10 +10,10 @@
                 >
                 Игровая библиотека
             </a>
-            <ul class="navbar-nav">
+            <ul class="navbar-nav flex-wrap">
                 <li class="nav-item">
                     <a
-                        class="nav-link{% if section == 'homepage' %} active" aria-current="page{% endif %}"
+                        class="nav-link{% if view == 'homepage:index' %} active" aria-current="page{% endif %}"
                         href="{% url 'homepage:index' %}"
                     >Главная</a>
                 </li>
@@ -28,6 +28,12 @@
                         class="nav-link{% if section == 'gamesessions' %} active" aria-current="page{% endif %}"
                         href="{% url 'gamesessions:list' %}"
                     >Игровые сессии</a>
+                </li>
+                <li class="nav-item">
+                    <a
+                        class="nav-link{% if view == 'homepage:statistics' %} active" aria-current="page{% endif %}"
+                        href="{% url 'homepage:statistics' %}"
+                    >Статистика</a>
                 </li>
             </ul>
         </div>

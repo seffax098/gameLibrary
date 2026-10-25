@@ -147,3 +147,7 @@ DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
 # Каталог JSON-файлов с данными библиотеки.
 
 DATA_DIR = BASE_DIR / 'data'
+
+# База SQLite игровой библиотеки.
+
+LIBRARY_DB = DATA_DIR / 'gamelibrary.sqlite'

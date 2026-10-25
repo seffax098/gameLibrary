@@ -1,0 +1,51 @@
+{% extends "base.html" %}
+
+{% block title %}Что поиграть - {{ block.super }}{% endblock %}
+
+{% block content %}
+    {% url 'games:list' as games_url %}
+    {% include "includes/back_link.html" with url=games_url text="Игры" %}
+    <h1 class="mb-1">Что поиграть</h1>
+    <p class="text-muted mb-4">
+        Игры библиотеки, по которым у игрока нет активных сессий.
+    </p>
+
+    <form method="get" class="panel p-4 mb-4">
+        <div class="row g-3 align-items-end">
+            <div class="col-md-6">
+                <label for="user" class="form-label">Игрок</label>
+                <select id="user" name="user" class="form-select">
+                    <option value="">Выберите игрока</option>
+                    {% for user in users %}
+                        <option value="{{ user.id }}"{% if user.id == player.id %} selected{% endif %}>
+                            {{ user.name }}
+                        </option>
+                    {% endfor %}
+                </select>
+            </div>
+            <div class="col-md-2">
+                <button type="submit" class="btn btn-dark w-100">Показать</button>
+            </div>
+        </div>
+    </form>
+
+    {% if player %}
+        <h2 class="h5 mb-3">
+            {{ player.name }} ещё не играл(а)
+            <span class="text-muted fw-normal">{{ games|length }}</span>
+        </h2>
+        <ul class="panel plain-list list-unstyled">
+            {% for game in games %}
+                <li>
+                    <a href="{% url 'games:detail' game.id %}">{{ game.title }}</a>
+                    <span class="text-muted">
+                        {{ game.genre }}, {{ game.platform }},
+                        около {{ game.hours_total|floatformat:0 }} ч
+                    </span>
+                </li>
+            {% empty %}
+                <li class="text-muted">Игрок уже играл во все игры библиотеки.</li>
+            {% endfor %}
+        </ul>
+    {% endif %}
+{% endblock %}

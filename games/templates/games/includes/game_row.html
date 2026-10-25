@@ -1,3 +1,4 @@
+{% load game_filters %}
 <tr>
     <td class="text-muted">{{ game.id }}</td>
     <td>
@@ -8,6 +9,6 @@
     <td>{{ game.genre }}</td>
     <td>{{ game.platform }}</td>
     <td>{{ game.release_year }}</td>
-    <td>{{ game.rating_label }}</td>
-    <td class="text-end">{{ played|floatformat:1 }} ч</td>
+    <td>{{ game.rating|rating_label }}</td>
+    <td class="text-end">{{ game.played|floatformat:1 }} ч</td>
 </tr>

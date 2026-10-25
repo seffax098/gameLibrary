@@ -6,9 +6,15 @@
     <div class="d-flex flex-wrap justify-content-between align-items-end gap-3 mb-4">
         <div>
             <h1 class="mb-1">Игры</h1>
-            <p class="text-muted mb-0">
+            <p class="text-muted mb-2">
                 Всего игр: {{ games|length }}
             </p>
+            <a href="{% url 'games:search' %}" class="btn btn-sm btn-outline-secondary">
+                Найти игру
+            </a>
+            <a href="{% url 'games:unplayed' %}" class="btn btn-sm btn-outline-secondary">
+                Что поиграть
+            </a>
         </div>
         <input
             type="search"
@@ -34,7 +40,7 @@
                     </tr>
                 </thead>
                 <tbody>
-                    {% for game, played in games %}
+                    {% for game in games %}
                         {% include "games/includes/game_row.html" %}
                     {% empty %}
                         <tr>
