@@ -91,7 +91,6 @@ def session_detail(
         """,
         [session["user_id"], session["game_id"]],
     )
-    # Агрегатный запрос без GROUP BY всегда возвращает одну строку.
     assert played is not None
     user = User(
         session["user_id"], session["user_name"], session["user_email"]
