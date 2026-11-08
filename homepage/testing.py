@@ -1,56 +1,37 @@
-"""Тестовая библиотека для проверки страниц."""
+"""Тестовые данные для страниц библиотеки."""
 
-import os
-import shutil
-import tempfile
 from datetime import date
 
-from django.test import SimpleTestCase, override_settings
+from django.test import TestCase
 
-from db.import_json import import_library
-from models import Game, GameSession, User
-from models.games import add_game
-from models.sessions import log_session
-from models.users import add_user
-from storage import save_games, save_sessions, save_users
+from games.models import Game
+from gamesessions.models import GameSession, Player
 
 
-class LibraryTestCase(SimpleTestCase):
-    """Базовый класс тестов страниц с временной базой SQLite.
-
-    Тестовые данные записываются в JSON-файлы и переносятся в базу тем
-    же скриптом импорта, что и данные проекта.
-    """
+class LibraryTestCase(TestCase):
+    """Страницы работают с моделями в тестовой базе Django."""
 
     @classmethod
-    def setUpClass(cls) -> None:
-        """Создать JSON-файлы и базу, включить подмену настроек."""
-        data_dir = tempfile.mkdtemp()
-        cls.addClassCleanup(shutil.rmtree, data_dir)
-
-        games: list[Game] = []
-        users: list[User] = []
-        sessions: list[GameSession] = []
-        witcher = add_game(
-            games, "The Witcher 3", "RPG", "PC", 2015, 100.0, 10
+    def setUpTestData(cls) -> None:
+        Game.objects.create(
+            pk=1, title="The Witcher 3", genre="RPG", platform="PC",
+            release_year=2015, hours_total=100, rating=10,
         )
-        add_game(games, "Tom & Jerry <Classic>", "", "PC", 2001, 5.0)
-        ivan = add_user(users, "Иван Петров", "ivan@example.com")
-        anna = add_user(users, "Анна Смирнова", "anna@example.com")
-        log_session(sessions, ivan, witcher, date(2026, 9, 10), 4.5)
-        cancelled = log_session(sessions, anna, witcher, date(2026, 9, 11), 2)
-        assert cancelled is not None
-        cancelled.cancel()
-
-        save_games(games, os.path.join(data_dir, "games.json"))
-        save_users(users, os.path.join(data_dir, "users.json"))
-        save_sessions(sessions, os.path.join(data_dir, "sessions.json"))
-        db_path = os.path.join(data_dir, "gamelibrary.sqlite")
-        import_library(db_path, data_dir)
-
-        data_settings = override_settings(
-            DATA_DIR=data_dir, LIBRARY_DB=db_path
+        Game.objects.create(
+            pk=2, title="Tom & Jerry <Classic>", platform="PC",
+            release_year=2001, hours_total=5,
         )
-        data_settings.enable()
-        cls.addClassCleanup(data_settings.disable)
-        super().setUpClass()
+        Player.objects.create(
+            pk=1, name="Иван Петров", email="ivan@example.com"
+        )
+        Player.objects.create(
+            pk=2, name="Анна Смирнова", email="anna@example.com"
+        )
+        GameSession.objects.create(
+            pk=1, player_id=1, game_id=1,
+            session_date=date(2026, 9, 10), hours=4.5,
+        )
+        GameSession.objects.create(
+            pk=2, player_id=2, game_id=1,
+            session_date=date(2026, 9, 11), hours=2, is_cancelled=True,
+        )

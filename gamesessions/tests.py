@@ -1,8 +1,12 @@
 """Тесты страниц приложения gamesessions."""
 
+from datetime import date
+
+from django.db import IntegrityError, transaction
 from django.urls import resolve, reverse
 
 from gamesessions import views
+from gamesessions.models import GameSession
 from homepage.testing import LibraryTestCase
 
 
@@ -51,3 +55,53 @@ class SessionsPagesTests(LibraryTestCase):
         response = self.client.get("/sessions/999/")
         self.assertContains(response, "Сессия не найдена", status_code=404)
         self.assertContains(response, 'href="/sessions/"', status_code=404)
+
+    def test_search_and_filters_include_cancelled_history(self) -> None:
+        """Поиск и фильтры сохраняют отменённые сессии в истории."""
+        response = self.client.get("/sessions/", {
+            "q": "смирнова", "game": "1", "player": "2", "date": "2026-09-11",
+        })
+        self.assertContains(response, 'href="/sessions/2/"')
+        self.assertNotContains(response, 'href="/sessions/1/"')
+        self.assertContains(response, "session-status-cancelled")
+
+    def test_sort_and_page_preserve_search_and_filter(self) -> None:
+        """Следующая страница сохраняет поиск, фильтр и порядок."""
+        for day in range(12, 17):
+            GameSession.objects.create(
+                game_id=1, player_id=1, session_date=date(2026, 9, day),
+                hours=1,
+            )
+        params = {"q": "witcher", "player": "1", "sort": "-date"}
+        response = self.client.get("/sessions/", params)
+        self.assertContains(
+            response, '?q=witcher&amp;player=1&amp;sort=-date&amp;page=2'
+        )
+        self.assertEqual(
+            [session.session_date.day for session in response.context[
+                "sessions"
+            ]],
+            [16, 15, 14, 13, 12],
+        )
+        response = self.client.get("/sessions/", {**params, "page": "2"})
+        self.assertContains(response, 'href="/sessions/1/"')
+        self.assertNotContains(response, 'href="/sessions/2/"')
+
+    def test_invalid_filters_and_page_fall_back(self) -> None:
+        """Некорректные параметры заменяются значениями по умолчанию."""
+        response = self.client.get("/sessions/", {
+            "game": "text", "player": "-1", "date": "2026-02-30",
+            "sort": "invalid", "page": "abc",
+        })
+        self.assertContains(response, "Всего сессий: 2")
+        self.assertEqual(response.context["sessions"].number, 1)
+
+    def test_active_session_is_unique_per_player_game_and_day(self) -> None:
+        """Ограничение блокирует дубль только для активных сессий."""
+        fields = {
+            "player_id": 1, "game_id": 1, "session_date": date(2026, 9, 10),
+            "hours": 1,
+        }
+        with self.assertRaises(IntegrityError), transaction.atomic():
+            GameSession.objects.create(**fields)
+        GameSession.objects.create(**fields, is_cancelled=True)

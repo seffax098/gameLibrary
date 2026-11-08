@@ -5,6 +5,8 @@ from django.test import SimpleTestCase
 from django.urls import resolve, reverse
 
 from gamelibrary import urls as gamelibrary_urls
+from games.models import Game
+from gamesessions.models import Player
 from homepage import views
 from homepage.testing import LibraryTestCase
 
@@ -79,13 +81,14 @@ class IndexPageTests(LibraryTestCase):
         self.assertContains(response, BOOTSTRAP_CSS, status_code=404)
         self.assertContains(response, 'href="/"', status_code=404)
 
-    def test_missing_database_is_reported(self) -> None:
-        """Без файла базы - понятное сообщение о команде импорта."""
-        with self.settings(LIBRARY_DB="missing.sqlite"):
-            with self.assertRaisesMessage(
-                FileNotFoundError, "python -m db.import_json"
-            ):
-                self.client.get("/")
+    def test_empty_library(self) -> None:
+        """Сводка работает на базе после миграций, до импорта."""
+        Game.objects.all().delete()
+        Player.objects.all().delete()
+        response = self.client.get("/")
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response.context["summary"]["games_count"], 0)
+        self.assertEqual(response.context["summary"]["hours_played"], 0)
 
     def test_handler404_is_configured(self) -> None:
         """handler404 объявлен в корневом urls.py."""
@@ -125,7 +128,7 @@ class StatisticsPageTests(LibraryTestCase):
     def test_having_threshold(self) -> None:
         """HAVING отбирает игры по сумме часов после группировки."""
         response = self.client.get("/statistics/")
-        self.assertEqual(response.context["popular"], [])
+        self.assertEqual(list(response.context["popular"]), [])
         self.assertContains(response, "Нет игр, в которые сыграно")
         response = self.client.get("/statistics/", {"min_hours": "4"})
         titles = [row["title"] for row in response.context["popular"]]

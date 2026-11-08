@@ -1,112 +1,97 @@
-"""View-функции приложения gamesessions.
+"""Список и карточка игровых сессий."""
 
-Данные берутся из базы SQLite (settings.LIBRARY_DB) SQL-запросами,
-сохранёнными также в sql/queries.sql.
-"""
+import re
 
-from django.conf import settings
+from django import forms
+from django.core.paginator import Paginator
+from django.db.models import Q, Sum
 from django.http import HttpRequest, HttpResponse
 from django.shortcuts import render
 
-from db.database import fetch_all, fetch_one
-from models import Game, Progress, User
+from games.models import Game
+from gamesessions.models import GameSession, Player
+from models import Progress
+
+SESSION_ORDER = {
+    "date": ("Дата ↑", "session_date"),
+    "-date": ("Дата ↓", "-session_date"),
+    "game": ("Игра", "game__title"),
+    "player": ("Игрок", "player__name"),
+    "-hours": ("Сыгранные часы ↓", "-hours"),
+}
+SESSION_SORT_CHOICES = [
+    (key, label) for key, (label, _) in SESSION_ORDER.items()
+]
+
+
+class SessionFilters(forms.Form):
+    """Проверка параметров поиска, фильтрации и сортировки."""
+
+    q = forms.CharField(required=False, max_length=255)
+    game = forms.IntegerField(required=False, min_value=1, max_value=2**63 - 1)
+    player = forms.IntegerField(
+        required=False, min_value=1, max_value=2**63 - 1
+    )
+    date = forms.DateField(required=False, input_formats=["%Y-%m-%d"])
+    sort = forms.ChoiceField(required=False, choices=SESSION_SORT_CHOICES)
 
 
 def sessions(request: HttpRequest) -> HttpResponse:
-    """Страница /sessions/: все сессии с игроком и игрой по датам."""
-    sessions_list = fetch_all(
-        settings.LIBRARY_DB,
-        """
-        SELECT
-            sessions.id,
-            strftime('%d.%m.%Y', sessions.session_date) AS played_on,
-            sessions.hours,
-            sessions.is_cancelled,
-            users.name AS user_name,
-            games.id AS game_id,
-            games.title AS game_title
-        FROM sessions
-        JOIN users
-            ON sessions.user_id = users.id
-        JOIN games
-            ON sessions.game_id = games.id
-        ORDER BY sessions.session_date, sessions.id
-        """,
-    )
-    return render(
-        request,
-        "gamesessions/session_list.html",
-        {"sessions": sessions_list},
-    )
-
-
-def session_detail(
-    request: HttpRequest,
-    session_id: int,
-) -> HttpResponse:
-    """Страница /sessions/<id>/: карточка сессии и прогресс игрока."""
-    session = fetch_one(
-        settings.LIBRARY_DB,
-        """
-        SELECT
-            sessions.id,
-            strftime('%d.%m.%Y', sessions.session_date) AS played_on,
-            sessions.hours,
-            sessions.is_cancelled,
-            users.id AS user_id,
-            users.name AS user_name,
-            users.email AS user_email,
-            games.id AS game_id,
-            games.title AS game_title,
-            games.genre AS game_genre,
-            games.platform AS game_platform,
-            games.release_year AS game_year,
-            games.hours_total AS game_hours_total,
-            games.rating AS game_rating
-        FROM sessions
-        JOIN users
-            ON sessions.user_id = users.id
-        JOIN games
-            ON sessions.game_id = games.id
-        WHERE sessions.id = ?
-        """,
-        [session_id],
-    )
-    if session is None:
-        return render(
-            request,
-            "gamesessions/session_detail.html",
-            {"session": None},
-            status=404,
+    """История сессий с поиском, фильтрами и пагинацией."""
+    form = SessionFilters(request.GET)
+    form.is_valid()
+    filters = form.cleaned_data
+    sessions_list = GameSession.objects.select_related("player", "game")
+    if query := filters.get("q"):
+        pattern = re.escape(query)
+        sessions_list = sessions_list.filter(
+            Q(game__title__iregex=pattern) | Q(player__name__iregex=pattern)
         )
-    played = fetch_one(
-        settings.LIBRARY_DB,
-        """
-        SELECT
-            COALESCE(SUM(hours), 0) AS hours
-        FROM sessions
-        WHERE user_id = ?
-            AND game_id = ?
-            AND is_cancelled = 0
-        """,
-        [session["user_id"], session["game_id"]],
+    if game_id := filters.get("game"):
+        sessions_list = sessions_list.filter(game_id=game_id)
+    if player_id := filters.get("player"):
+        sessions_list = sessions_list.filter(player_id=player_id)
+    if session_date := filters.get("date"):
+        sessions_list = sessions_list.filter(session_date=session_date)
+
+    sort = filters.get("sort") or "date"
+    sessions_list = sessions_list.order_by(SESSION_ORDER[sort][1], "pk")
+    page = Paginator(sessions_list, 5).get_page(request.GET.get("page"))
+    context = {
+        "sessions": page,
+        "games": Game.objects.order_by("title", "pk"),
+        "players": Player.objects.order_by("name", "pk"),
+        "q": filters.get("q", ""),
+        "selected_game": filters.get("game"),
+        "selected_player": filters.get("player"),
+        "selected_date": filters.get("date"),
+        "sort": sort,
+        "sort_options": SESSION_SORT_CHOICES,
+    }
+    return render(request, "gamesessions/session_list.html", context)
+
+
+def session_detail(request: HttpRequest, session_id: int) -> HttpResponse:
+    """Карточка сессии и прогресс игрока в связанной игре."""
+    try:
+        session = GameSession.objects.select_related("game", "player").get(
+            pk=session_id
+        )
+    except GameSession.DoesNotExist:
+        return render(
+            request, "gamesessions/session_detail.html",
+            {"session": None}, status=404,
+        )
+
+    totals = GameSession.objects.filter(
+        player_id=session.player_id, game_id=session.game_id,
+        is_cancelled=False,
+    ).aggregate(hours=Sum("hours", default=0))
+    progress = Progress(
+        session.player.as_library_user(),
+        session.game.as_library_game(),
+        totals["hours"],
     )
-    assert played is not None
-    user = User(
-        session["user_id"], session["user_name"], session["user_email"]
-    )
-    game = Game(
-        session["game_id"],
-        session["game_title"],
-        session["game_genre"],
-        session["game_platform"],
-        session["game_year"],
-        session["game_hours_total"],
-        session["game_rating"] or 0,
-    )
-    progress = Progress(user, game, played["hours"])
-    return render(
-        request,
-        "gamesessions/session_detail.html",
-        {"session": session, "progress": progress},
-    )
+    return render(request, "gamesessions/session_detail.html", {
+        "session": session, "progress": progress,
+    })

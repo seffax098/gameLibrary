@@ -1,21 +1,19 @@
-"""View-функции приложения games.
+"""Страницы игровой библиотеки."""
 
-Данные берутся из базы SQLite (settings.LIBRARY_DB) SQL-запросами,
-сохранёнными также в sql/queries.sql. Значения от пользователя
-передаются в запрос параметрами ?, а не вставляются в текст SQL.
-"""
+import re
 
-from django.conf import settings
+from django.db.models import Q, QuerySet, Sum
 from django.http import HttpRequest, HttpResponse
 from django.shortcuts import render
 
-from db.database import fetch_all, fetch_one
-from models import Game, Progress, User
+from games.models import Game
+from gamesessions.models import GameSession, Player
+from models import Progress
 from models.games import FIRST_GAME_YEAR
 
 
 def _int_param(request: HttpRequest, name: str, default: int) -> int:
-    """Целое число из параметра GET; пустое или неверное - default."""
+    """Вернуть числовой GET-параметр или значение по умолчанию."""
     try:
         return int(request.GET.get(name, ""))
     except ValueError:
@@ -23,95 +21,39 @@ def _int_param(request: HttpRequest, name: str, default: int) -> int:
 
 
 def games(request: HttpRequest) -> HttpResponse:
-    """Страница /games/: игры и часы, сыгранные всеми игроками."""
-    games_list = fetch_all(
-        settings.LIBRARY_DB,
-        """
-        SELECT
-            games.id,
-            games.title,
-            games.genre,
-            games.platform,
-            games.release_year,
-            games.rating,
-            COALESCE(SUM(sessions.hours), 0) AS played
-        FROM games
-        LEFT JOIN sessions
-            ON sessions.game_id = games.id
-            AND sessions.is_cancelled = 0
-        GROUP BY games.id
-        ORDER BY games.id
-        """,
-    )
+    """Список игр, включая игры без сыгранных часов."""
+    games_list = Game.objects.annotate(
+        played=Sum(
+            "sessions__hours", filter=Q(sessions__is_cancelled=False),
+            default=0,
+        ),
+    ).order_by("pk")
     return render(request, "games/game_list.html", {"games": games_list})
 
 
 def game_detail(request: HttpRequest, game_id: int) -> HttpResponse:
-    """Страница /games/<id>/: карточка игры и прогресс игроков.
-
-    Строки базы превращаются в объекты Game, User и Progress: эпоху,
-    описание оценки, процент и статус прохождения вычисляет модель.
-    """
-    row = fetch_one(
-        settings.LIBRARY_DB,
-        """
-        SELECT
-            id,
-            title,
-            genre,
-            platform,
-            release_year,
-            hours_total,
-            rating
-        FROM games
-        WHERE id = ?
-        """,
-        [game_id],
-    )
-    if row is None:
+    """Карточка игры, активные сессии и прогресс всех игроков."""
+    try:
+        game = Game.objects.get(pk=game_id).as_library_game()
+    except Game.DoesNotExist:
         return render(
             request, "games/game_detail.html", {"game": None}, status=404
         )
-    game = Game.from_data(dict(row))
-    players = fetch_all(
-        settings.LIBRARY_DB,
-        """
-        SELECT
-            users.id,
-            users.name,
-            users.email,
-            COALESCE(SUM(sessions.hours), 0) AS hours
-        FROM users
-        LEFT JOIN sessions
-            ON sessions.user_id = users.id
-            AND sessions.game_id = ?
-            AND sessions.is_cancelled = 0
-        GROUP BY users.id, users.name, users.email
-        ORDER BY users.id
-        """,
-        [game_id],
-    )
-    sessions = fetch_all(
-        settings.LIBRARY_DB,
-        """
-        SELECT
-            sessions.id,
-            strftime('%d.%m.%Y', sessions.session_date) AS played_on,
-            sessions.hours,
-            users.name AS user_name
-        FROM sessions
-        JOIN users
-            ON sessions.user_id = users.id
-        WHERE sessions.game_id = ?
-            AND sessions.is_cancelled = 0
-        ORDER BY sessions.session_date, sessions.id
-        """,
-        [game_id],
-    )
+
+    players = Player.objects.annotate(
+        played=Sum(
+            "sessions__hours",
+            filter=Q(sessions__game_id=game_id, sessions__is_cancelled=False),
+            default=0,
+        )
+    ).order_by("pk")
+    sessions = GameSession.objects.filter(
+        game_id=game_id, is_cancelled=False
+    ).select_related("player").order_by("session_date", "pk")
     context = {
         "game": game,
         "players": [
-            Progress(User.from_data(dict(player)), game, player["hours"])
+            Progress(player.as_library_user(), game, player.played)
             for player in players
         ],
         "sessions": sessions,
@@ -120,43 +62,28 @@ def game_detail(request: HttpRequest, game_id: int) -> HttpResponse:
 
 
 def game_search(request: HttpRequest) -> HttpResponse:
-    """Страница /games/search/: поиск игр по платформе, году и оценке.
-
-    Пустая платформа означает «любая»: условие (? = '' OR platform = ?)
-    получает значение платформы дважды.
-    """
+    """Поиск игры по названию, платформе, году и оценке."""
+    title = request.GET.get("q", "").strip()[:255]
     platform = request.GET.get("platform", "")
     year_from = _int_param(request, "year_from", FIRST_GAME_YEAR)
     rating_from = _int_param(request, "rating_from", 0)
-    platforms = fetch_all(
-        settings.LIBRARY_DB,
-        """
-        SELECT DISTINCT platform
-        FROM games
-        ORDER BY platform
-        """,
-    )
-    found = fetch_all(
-        settings.LIBRARY_DB,
-        """
-        SELECT
-            id,
-            title,
-            genre,
-            platform,
-            release_year,
-            rating
-        FROM games
-        WHERE (? = '' OR platform = ?)
-            AND release_year >= ?
-            AND COALESCE(rating, 0) >= ?
-        ORDER BY rating DESC, title
-        """,
-        [platform, platform, year_from, rating_from],
-    )
+    platforms = Game.objects.order_by("platform").values_list(
+        "platform", flat=True
+    ).distinct()
+
+    found = Game.objects.filter(release_year__gte=year_from)
+    if platform:
+        found = found.filter(platform=platform)
+    if rating_from > 0:
+        found = found.filter(rating__gte=rating_from)
+    if title:
+        # SQLite LIKE игнорирует регистр только для символов ASCII.
+        found = found.filter(title__iregex=re.escape(title))
+
     context = {
-        "games": found,
-        "platforms": [row["platform"] for row in platforms],
+        "games": found.order_by("-rating", "title", "pk"),
+        "platforms": platforms,
+        "q": title,
         "platform": platform,
         "year_from": request.GET.get("year_from", ""),
         "rating_from": request.GET.get("rating_from", ""),
@@ -165,48 +92,18 @@ def game_search(request: HttpRequest) -> HttpResponse:
 
 
 def unplayed_games(request: HttpRequest) -> HttpResponse:
-    """Страница /games/unplayed/: игры, в которые игрок ещё не играл.
-
-    Запрос к играм выполняется, только если выбран существующий игрок.
-    """
-    users = fetch_all(
-        settings.LIBRARY_DB,
-        """
-        SELECT
-            id,
-            name,
-            email
-        FROM users
-        ORDER BY name
-        """,
-    )
+    """Игры, в которых у выбранного игрока нет активных сессий."""
+    users = list(Player.objects.order_by("name", "pk"))
     user_id = _int_param(request, "user", 0)
-    player = next((user for user in users if user["id"] == user_id), None)
-    games_list = []
+    player = next((user for user in users if user.pk == user_id), None)
+    games_list: QuerySet[Game] | list[Game] = []
     if player is not None:
-        games_list = fetch_all(
-            settings.LIBRARY_DB,
-            """
-            SELECT
-                games.id,
-                games.title,
-                games.genre,
-                games.platform,
-                games.hours_total
-            FROM games
-            WHERE games.id NOT IN (
-                SELECT sessions.game_id
-                FROM sessions
-                WHERE sessions.user_id = ?
-                    AND sessions.is_cancelled = 0
-            )
-            ORDER BY games.title
-            """,
-            [user_id],
+        played_ids = GameSession.objects.filter(
+            player=player, is_cancelled=False
+        ).values("game_id")
+        games_list = Game.objects.exclude(pk__in=played_ids).order_by(
+            "title", "pk"
         )
-    context = {
-        "users": users,
-        "player": player,
-        "games": games_list,
-    }
-    return render(request, "games/game_unplayed.html", context)
+    return render(request, "games/game_unplayed.html", {
+        "users": users, "player": player, "games": games_list,
+    })

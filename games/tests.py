@@ -30,13 +30,13 @@ class GamesPagesTests(LibraryTestCase):
         self.assertContains(response, "Всего игр: 2")
 
     def test_games_list_passes_context(self) -> None:
-        """Контекст содержит строки базы: поля доступны по именам."""
+        """Контекст содержит игры с аннотацией сыгранных часов."""
         response = self.client.get("/games/")
         witcher, classic = response.context["games"]
-        self.assertEqual(witcher["title"], "The Witcher 3")
-        self.assertEqual(witcher["played"], 4.5)
-        self.assertEqual(classic["played"], 0)
-        self.assertIsNone(classic["rating"])
+        self.assertEqual(witcher.title, "The Witcher 3")
+        self.assertEqual(witcher.played, 4.5)
+        self.assertEqual(classic.played, 0)
+        self.assertIsNone(classic.rating)
 
     def test_games_list_links_to_search_pages(self) -> None:
         """Со страницы списка можно перейти к поиску и подбору игр."""
@@ -101,12 +101,12 @@ class GameSearchTests(LibraryTestCase):
         response = self.client.get("/games/search/")
         self.assertTemplateUsed(response, "games/game_search.html")
         self.assertContains(response, "Найдено игр: 2")
-        self.assertEqual(response.context["platforms"], ["PC"])
+        self.assertEqual(list(response.context["platforms"]), ["PC"])
 
     def test_search_by_year(self) -> None:
         """Условие на год выпуска отбирает игры через WHERE."""
         response = self.client.get("/games/search/", {"year_from": 2010})
-        titles = [row["title"] for row in response.context["games"]]
+        titles = [game.title for game in response.context["games"]]
         self.assertEqual(titles, ["The Witcher 3"])
 
     def test_search_by_rating_treats_null_as_zero(self) -> None:
@@ -128,6 +128,15 @@ class GameSearchTests(LibraryTestCase):
         response = self.client.get("/games/search/", {"year_from": "abc"})
         self.assertContains(response, "Найдено игр: 2")
         self.assertContains(response, 'value="abc"')
+
+    def test_title_search_with_filters(self) -> None:
+        """Поиск по названию сочетается с платформой и годом."""
+        response = self.client.get(
+            "/games/search/",
+            {"q": "wItChEr", "platform": "PC", "year_from": "2010"},
+        )
+        self.assertContains(response, "Найдено игр: 1")
+        self.assertContains(response, "The Witcher 3")
 
 
 class UnplayedGamesTests(LibraryTestCase):
@@ -151,7 +160,7 @@ class UnplayedGamesTests(LibraryTestCase):
     def test_played_game_is_excluded(self) -> None:
         """Игра с активной сессией игрока исключается подзапросом."""
         response = self.client.get("/games/unplayed/", {"user": 1})
-        titles = [row["title"] for row in response.context["games"]]
+        titles = [game.title for game in response.context["games"]]
         self.assertEqual(titles, ["Tom & Jerry <Classic>"])
         self.assertContains(response, "Иван Петров ещё не играл(а)")
 

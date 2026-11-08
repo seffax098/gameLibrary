@@ -148,6 +148,6 @@ DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
 
 DATA_DIR = BASE_DIR / 'data'
 
-# База SQLite игровой библиотеки.
+# Исходная база ПР7 для команды переноса данных.
 
 LIBRARY_DB = DATA_DIR / 'gamelibrary.sqlite'

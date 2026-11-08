@@ -16,21 +16,21 @@
                             <div class="fact-label">Игра</div>
                             <div>
                                 <a href="{% url 'games:detail' session.game_id %}">
-                                    {{ session.game_title }}
+                                    {{ session.game.title }}
                                 </a>
                             </div>
                         </div>
                         <div class="col">
                             <div class="fact-label">Игрок</div>
-                            <div>{{ session.user_name }}</div>
+                            <div>{{ session.player.name }}</div>
                         </div>
                         <div class="col">
                             <div class="fact-label">Почта</div>
-                            <div>{{ session.user_email|default:"не указана" }}</div>
+                            <div>{{ session.player.email|default:"не указана" }}</div>
                         </div>
                         <div class="col">
                             <div class="fact-label">Дата</div>
-                            <div>{{ session.played_on }}</div>
+                            <div>{{ session.session_date|date:"d.m.Y" }}</div>
                         </div>
                         <div class="col">
                             <div class="fact-label">Сыграно</div>
