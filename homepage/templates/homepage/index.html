@@ -22,6 +22,8 @@
         {% include "homepage/includes/stat_card.html" with label="Игр в библиотеке" value=summary.games_count %}
         {% include "homepage/includes/stat_card.html" with label="Игроков" value=summary.users_count %}
         {% include "homepage/includes/stat_card.html" with label="Активных сессий" value=summary.sessions_count %}
+        {% include "homepage/includes/stat_card.html" with label="Завершённых сессий" value=summary.completed_count %}
+        {% include "homepage/includes/stat_card.html" with label="Отменённых сессий" value=summary.cancelled_count %}
         {% include "homepage/includes/stat_card.html" with label="Сыграно часов" value=summary.hours_played|floatformat:1 %}
         {% include "homepage/includes/stat_card.html" with label="Средняя оценка" value=summary.average_rating|default:0|floatformat:1 %}
     </div>
@@ -31,8 +33,7 @@
             <h2 class="h5 mb-3">Популярные игры</h2>
             <ul class="panel plain-list list-unstyled">
                 {% for game in top_games %}
-                    {% url 'games:detail' game.id as game_url %}
-                    {% include "homepage/includes/ranking_item.html" with name=game.title url=game_url hours=game.hours %}
+                    {% include "homepage/includes/ranking_item.html" with name=game.title url=game.get_absolute_url hours=game.hours %}
                 {% empty %}
                     <li class="text-muted">Сессий пока нет</li>
                 {% endfor %}

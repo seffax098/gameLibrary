@@ -34,6 +34,7 @@ class SessionFilters(forms.Form):
     )
     date = forms.DateField(required=False, input_formats=["%Y-%m-%d"])
     sort = forms.ChoiceField(required=False, choices=SESSION_SORT_CHOICES)
+    status = forms.ChoiceField(required=False, choices=GameSession.Status)
 
 
 def sessions(request: HttpRequest) -> HttpResponse:
@@ -52,7 +53,9 @@ def sessions(request: HttpRequest) -> HttpResponse:
     if player_id := filters.get("player"):
         sessions_list = sessions_list.filter(player_id=player_id)
     if session_date := filters.get("date"):
-        sessions_list = sessions_list.filter(session_date=session_date)
+        sessions_list = sessions_list.for_date(session_date)
+    if status := filters.get("status"):
+        sessions_list = sessions_list.filter(status=status)
 
     sort = filters.get("sort") or "date"
     sessions_list = sessions_list.order_by(SESSION_ORDER[sort][1], "pk")
@@ -65,6 +68,8 @@ def sessions(request: HttpRequest) -> HttpResponse:
         "selected_game": filters.get("game"),
         "selected_player": filters.get("player"),
         "selected_date": filters.get("date"),
+        "selected_status": filters.get("status"),
+        "status_options": GameSession.Status.choices,
         "sort": sort,
         "sort_options": SESSION_SORT_CHOICES,
     }
@@ -83,9 +88,8 @@ def session_detail(request: HttpRequest, session_id: int) -> HttpResponse:
             {"session": None}, status=404,
         )
 
-    totals = GameSession.objects.filter(
+    totals = GameSession.objects.played().filter(
         player_id=session.player_id, game_id=session.game_id,
-        is_cancelled=False,
     ).aggregate(hours=Sum("hours", default=0))
     progress = Progress(
         session.player.as_library_user(),

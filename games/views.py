@@ -2,12 +2,13 @@
 
 import re
 
+from django import forms
 from django.db.models import Q, QuerySet, Sum
 from django.http import HttpRequest, HttpResponse
 from django.shortcuts import render
 
 from games.models import Game
-from gamesessions.models import GameSession, Player
+from gamesessions.models import PLAYED_STATUSES, GameSession, Player
 from models import Progress
 from models.games import FIRST_GAME_YEAR
 
@@ -24,34 +25,42 @@ def games(request: HttpRequest) -> HttpResponse:
     """Список игр, включая игры без сыгранных часов."""
     games_list = Game.objects.annotate(
         played=Sum(
-            "sessions__hours", filter=Q(sessions__is_cancelled=False),
+            "sessions__hours", filter=Q(sessions__status__in=PLAYED_STATUSES),
             default=0,
         ),
     ).order_by("pk")
     return render(request, "games/game_list.html", {"games": games_list})
 
 
-def game_detail(request: HttpRequest, game_id: int) -> HttpResponse:
-    """Карточка игры, активные сессии и прогресс всех игроков."""
+def game_detail(
+    request: HttpRequest, game_id: int | None = None, slug: str | None = None,
+) -> HttpResponse:
+    """Карточка игры, сыгранные сессии и прогресс всех игроков."""
     try:
-        game = Game.objects.get(pk=game_id).as_library_game()
+        key = {"slug": slug} if slug is not None else {"pk": game_id}
+        entry = Game.objects.get(**key)
     except Game.DoesNotExist:
         return render(
             request, "games/game_detail.html", {"game": None}, status=404
         )
 
+    game = entry.as_library_game()
     players = Player.objects.annotate(
         played=Sum(
             "sessions__hours",
-            filter=Q(sessions__game_id=game_id, sessions__is_cancelled=False),
+            filter=Q(
+                sessions__game_id=game.id,
+                sessions__status__in=PLAYED_STATUSES,
+            ),
             default=0,
         )
     ).order_by("pk")
-    sessions = GameSession.objects.filter(
-        game_id=game_id, is_cancelled=False
+    sessions = GameSession.objects.played().filter(
+        game_id=game.id
     ).select_related("player").order_by("session_date", "pk")
     context = {
         "game": game,
+        "is_long": entry.is_long,
         "players": [
             Progress(player.as_library_user(), game, player.played)
             for player in players
@@ -92,18 +101,34 @@ def game_search(request: HttpRequest) -> HttpResponse:
 
 
 def unplayed_games(request: HttpRequest) -> HttpResponse:
-    """Игры, в которых у выбранного игрока нет активных сессий."""
+    """Игры без сыгранных сессий или без активной сессии на дату."""
     users = list(Player.objects.order_by("name", "pk"))
     user_id = _int_param(request, "user", 0)
     player = next((user for user in users if user.pk == user_id), None)
+    date_form = AvailabilityDateForm(request.GET)
+    valid_date = date_form.is_valid()
+    selected_date = date_form.cleaned_data.get("date") if valid_date else None
     games_list: QuerySet[Game] | list[Game] = []
-    if player is not None:
-        played_ids = GameSession.objects.filter(
-            player=player, is_cancelled=False
-        ).values("game_id")
-        games_list = Game.objects.exclude(pk__in=played_ids).order_by(
+    if player is not None and valid_date:
+        history = GameSession.objects.filter(player=player)
+        excluded_sessions = (
+            history.active().for_date(selected_date)
+            if selected_date else history.played()
+        )
+        games_list = Game.objects.exclude(
+            pk__in=excluded_sessions.values("game_id")
+        ).order_by(
             "title", "pk"
         )
     return render(request, "games/game_unplayed.html", {
         "users": users, "player": player, "games": games_list,
+        "selected_date": selected_date, "date_error": date_form.errors.get(
+            "date"
+        ),
     })
+
+
+class AvailabilityDateForm(forms.Form):
+    """Проверка необязательной даты в подборе игр."""
+
+    date = forms.DateField(required=False, input_formats=["%Y-%m-%d"])

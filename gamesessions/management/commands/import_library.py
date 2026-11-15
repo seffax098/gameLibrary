@@ -8,6 +8,7 @@ from pathlib import Path
 from django.conf import settings
 from django.core.management.base import BaseCommand, CommandError
 from django.db import DatabaseError, transaction
+from django.db.models import Case, F, Value, When
 
 from games.models import Game
 from gamesessions.models import GameSession, Player
@@ -65,14 +66,26 @@ class Command(BaseCommand):
                 defaults={"name": row["name"], "email": row["email"]},
             )
         for row in sessions:
+            status = (
+                GameSession.Status.CANCELLED if row["is_cancelled"]
+                else GameSession.Status.ACTIVE
+            )
+            session_fields = {
+                "player_id": row["user_id"],
+                "game_id": row["game_id"],
+                "session_date": date.fromisoformat(row["session_date"]),
+                "hours": row["hours"],
+            }
             GameSession.objects.update_or_create(
                 pk=row["id"],
                 defaults={
-                    "player_id": row["user_id"],
-                    "game_id": row["game_id"],
-                    "session_date": date.fromisoformat(row["session_date"]),
-                    "hours": row["hours"],
-                    "is_cancelled": bool(row["is_cancelled"]),
+                    **session_fields,
+                    "status": Case(
+                        When(status=GameSession.Status.COMPLETED,
+                             then=F("status")),
+                        default=Value(status),
+                    ),
                 },
+                create_defaults={**session_fields, "status": status},
             )
         return len(games), len(players), len(sessions)

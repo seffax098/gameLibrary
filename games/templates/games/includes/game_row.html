@@ -2,7 +2,7 @@
 <tr>
     <td class="text-muted">{{ game.id }}</td>
     <td>
-        <a href="{% url 'games:detail' game.id %}" class="fw-medium">
+        <a href="{{ game.get_absolute_url }}" class="fw-medium">
             {{ game.title|default:"Без названия" }}
         </a>
     </td>

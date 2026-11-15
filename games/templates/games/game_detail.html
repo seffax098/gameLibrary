@@ -27,6 +27,9 @@
                         <div class="col">
                             <div class="fact-label">Время прохождения</div>
                             <div>{{ game.hours_total|floatformat:0 }} ч</div>
+                            {% if is_long %}
+                                <small class="text-muted">Длительная игра</small>
+                            {% endif %}
                         </div>
                         <div class="col">
                             <div class="fact-label">Оценка</div>

@@ -10,6 +10,8 @@ https://docs.djangoproject.com/en/5.2/topics/settings/
 https://docs.djangoproject.com/en/5.2/ref/settings/
 """
 
+import os
+import sys
 from pathlib import Path
 
 # Пути внутри проекта строятся от корня: BASE_DIR / 'подкаталог'.
@@ -28,6 +30,9 @@ SECRET_KEY = (
 
 # ВНИМАНИЕ: не включайте режим отладки на рабочем сервере!
 DEBUG = True
+TESTING = "test" in sys.argv or "PYTEST_VERSION" in os.environ
+DEBUG_TOOLBAR_ENABLED = DEBUG and not TESTING
+INTERNAL_IPS = ["127.0.0.1", "::1"]
 
 ALLOWED_HOSTS: list[str] = ["localhost", "127.0.0.1"]
 
@@ -43,8 +48,8 @@ INSTALLED_APPS = [
     'django.contrib.messages',
     'django.contrib.staticfiles',
     'homepage',
-    'games',
-    'gamesessions',
+    'games.apps.GamesConfig',
+    'gamesessions.apps.GamesessionsConfig',
 ]
 
 MIDDLEWARE = [
@@ -56,6 +61,10 @@ MIDDLEWARE = [
     'django.contrib.messages.middleware.MessageMiddleware',
     'django.middleware.clickjacking.XFrameOptionsMiddleware',
 ]
+
+if DEBUG_TOOLBAR_ENABLED:
+    INSTALLED_APPS.append('debug_toolbar')
+    MIDDLEWARE.insert(1, 'debug_toolbar.middleware.DebugToolbarMiddleware')
 
 ROOT_URLCONF = 'gamelibrary.urls'
 
@@ -70,6 +79,7 @@ TEMPLATES = [
                 'django.template.context_processors.request',
                 'django.contrib.auth.context_processors.auth',
                 'django.contrib.messages.context_processors.messages',
+                'games.context_processors.library_context',
             ],
         },
     },

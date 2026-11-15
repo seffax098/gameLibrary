@@ -8,7 +8,7 @@
                     alt=""
                     class="site-logo"
                 >
-                Игровая библиотека
+                {{ site_name }}
             </a>
             <ul class="navbar-nav flex-wrap">
                 <li class="nav-item">
@@ -21,7 +21,7 @@
                     <a
                         class="nav-link{% if section == 'games' %} active" aria-current="page{% endif %}"
                         href="{% url 'games:list' %}"
-                    >Игры</a>
+                    >Игры <span class="small">({{ library_games_count }})</span></a>
                 </li>
                 <li class="nav-item">
                     <a

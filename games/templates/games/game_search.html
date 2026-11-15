@@ -72,7 +72,7 @@
                     {% for game in games %}
                         <tr>
                             <td>
-                                <a href="{% url 'games:detail' game.id %}" class="fw-medium">
+                                <a href="{{ game.get_absolute_url }}" class="fw-medium">
                                     {{ game.title }}
                                 </a>
                             </td>

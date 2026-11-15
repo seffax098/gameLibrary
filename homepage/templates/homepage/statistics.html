@@ -73,6 +73,8 @@
                     <tr>
                         <th>Игрок</th>
                         <th class="text-end">Активных сессий</th>
+                        <th class="text-end">Завершено</th>
+                        <th class="text-end">Отменено</th>
                         <th class="text-end">Разных игр</th>
                         <th class="text-end">Сыграно</th>
                     </tr>
@@ -82,11 +84,13 @@
                         <tr>
                             <td>{{ player.name }}</td>
                             <td class="text-end">{{ player.sessions_count }}</td>
+                            <td class="text-end">{{ player.completed_count }}</td>
+                            <td class="text-end">{{ player.cancelled_count }}</td>
                             <td class="text-end">{{ player.games_count }}</td>
                             <td class="text-end">{{ player.hours|floatformat:1 }} ч</td>
                         </tr>
                     {% empty %}
-                        <tr><td colspan="4" class="text-muted">Игроков пока нет.</td></tr>
+                        <tr><td colspan="6" class="text-muted">Игроков пока нет.</td></tr>
                     {% endfor %}
                 </tbody>
             </table>
@@ -113,7 +117,7 @@
     <ul class="panel plain-list list-unstyled">
         {% for game in popular %}
             <li>
-                <a href="{% url 'games:detail' game.id %}">{{ game.title }}</a>
+                <a href="{% url 'games:detail' slug=game.slug %}">{{ game.title }}</a>
                 <span class="text-muted">
                     {{ game.hours|floatformat:1 }} ч, сессий: {{ game.sessions_count }}
                 </span>

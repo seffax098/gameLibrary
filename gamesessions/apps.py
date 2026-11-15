@@ -8,3 +8,4 @@ class GamesessionsConfig(AppConfig):
 
     default_auto_field = "django.db.models.BigAutoField"
     name = "gamesessions"
+    verbose_name = "Игроки и сессии"

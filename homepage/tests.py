@@ -6,7 +6,7 @@ from django.urls import resolve, reverse
 
 from gamelibrary import urls as gamelibrary_urls
 from games.models import Game
-from gamesessions.models import Player
+from gamesessions.models import GameSession, Player
 from homepage import views
 from homepage.testing import LibraryTestCase
 
@@ -124,6 +124,20 @@ class StatisticsPageTests(LibraryTestCase):
         self.assertEqual(players["Анна Смирнова"]["sessions_count"], 0)
         self.assertEqual(players["Анна Смирнова"]["hours"], 0)
         self.assertEqual(players["Иван Петров"]["hours"], 4.5)
+
+    def test_statistics_distinguishes_all_session_statuses(self) -> None:
+        """Завершение оставляет сыгранные часы в статистике."""
+        GameSession.objects.active().update(
+            status=GameSession.Status.COMPLETED
+        )
+        summary = self.client.get("/").context["summary"]
+        self.assertEqual(summary["sessions_count"], 0)
+        self.assertEqual(summary["completed_count"], 1)
+        self.assertEqual(summary["cancelled_count"], 1)
+        self.assertEqual(summary["hours_played"], 4.5)
+        players = self.client.get("/statistics/").context["players"]
+        self.assertEqual(players[0]["completed_count"], 1)
+        self.assertEqual(players[1]["cancelled_count"], 1)
 
     def test_having_threshold(self) -> None:
         """HAVING отбирает игры по сумме часов после группировки."""

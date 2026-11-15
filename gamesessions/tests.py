@@ -2,9 +2,11 @@
 
 from datetime import date
 
+from django.contrib.auth.models import User
 from django.db import IntegrityError, transaction
 from django.urls import resolve, reverse
 
+from games.models import Game
 from gamesessions import views
 from gamesessions.models import GameSession
 from homepage.testing import LibraryTestCase
@@ -26,7 +28,8 @@ class SessionsPagesTests(LibraryTestCase):
 
     def test_sessions_list_shows_cancelled(self) -> None:
         """Список содержит и активные, и отменённые сессии."""
-        response = self.client.get("/sessions/")
+        with self.assertNumQueries(5):
+            response = self.client.get("/sessions/")
         self.assertTemplateUsed(response, "gamesessions/session_list.html")
         self.assertTemplateUsed(
             response, "gamesessions/includes/session_status.html"
@@ -39,14 +42,16 @@ class SessionsPagesTests(LibraryTestCase):
 
     def test_session_detail_shows_linked_objects(self) -> None:
         """Карточка сессии показывает связанные игру и игрока."""
-        response = self.client.get("/sessions/1/")
+        with self.assertNumQueries(3):
+            response = self.client.get("/sessions/1/")
         self.assertTemplateUsed(response, "gamesessions/session_detail.html")
         self.assertContains(
             response, "<title>Сессия №1 - Игровая библиотека</title>"
         )
         self.assertContains(response, "Иван Петров")
         self.assertContains(response, "ivan@example.com")
-        self.assertContains(response, 'href="/games/1/"')
+        url = Game.objects.get(pk=1).get_absolute_url()
+        self.assertContains(response, f'href="{url}"')
         self.assertContains(response, "10.09.2026")
         self.assertContains(response, "4,5 из 100 ч")
 
@@ -72,10 +77,14 @@ class SessionsPagesTests(LibraryTestCase):
                 game_id=1, player_id=1, session_date=date(2026, 9, day),
                 hours=1,
             )
-        params = {"q": "witcher", "player": "1", "sort": "-date"}
+        params = {
+            "q": "witcher", "player": "1", "status": "active", "sort": "-date",
+        }
         response = self.client.get("/sessions/", params)
         self.assertContains(
-            response, '?q=witcher&amp;player=1&amp;sort=-date&amp;page=2'
+            response,
+            "?q=witcher&amp;player=1&amp;status=active&amp;sort=-date"
+            "&amp;page=2",
         )
         self.assertEqual(
             [session.session_date.day for session in response.context[
@@ -104,4 +113,81 @@ class SessionsPagesTests(LibraryTestCase):
         }
         with self.assertRaises(IntegrityError), transaction.atomic():
             GameSession.objects.create(**fields)
-        GameSession.objects.create(**fields, is_cancelled=True)
+        GameSession.objects.create(
+            **fields, status=GameSession.Status.CANCELLED,
+        )
+        GameSession.objects.create(
+            **fields, status=GameSession.Status.COMPLETED,
+        )
+
+    def test_completed_history_and_queryset(self) -> None:
+        """Менеджер сохраняет историю и поддерживает составные выборки."""
+        selected = date(2026, 9, 10)
+        completed = GameSession.objects.create(
+            player_id=1, game_id=1, session_date=selected, hours=2,
+            status=GameSession.Status.COMPLETED,
+        )
+        self.assertEqual(GameSession.objects.count(), 3)
+        self.assertEqual(GameSession.objects.cancelled().get().pk, 2)
+        active = GameSession.objects.for_date(selected).active().get()
+        self.assertEqual(active.pk, 1)
+        self.assertEqual(GameSession.objects.completed().get(), completed)
+        response = self.client.get("/sessions/", {"status": "completed"})
+        self.assertContains(response, "session-status-completed")
+        self.assertContains(response, "Всего сессий: 1")
+        self.assertContains(self.client.get("/sessions/1/"), "6,5 из 100 ч")
+
+
+class LibraryAdminTests(LibraryTestCase):
+    """Реальные страницы Django Admin на тестовой базе."""
+
+    def setUp(self) -> None:
+        admin_user = User.objects.create_superuser("test-admin")
+        self.client.force_login(admin_user)
+
+    def test_session_admin_search_and_status_filter(self) -> None:
+        """Поиск работает по связанной игре и почте игрока."""
+        url = reverse("admin:gamesessions_gamesession_changelist")
+        response = self.client.get(
+            url,
+            {"q": "Witcher anna@example.com", "status__exact": "cancelled"},
+        )
+        self.assertEqual(response.status_code, 200)
+        results = response.context["cl"].result_list
+        self.assertEqual([session.pk for session in results], [2])
+
+    def test_related_sessions_and_public_game_url(self) -> None:
+        """В обеих админ-карточках видны связанные записи."""
+        game_admin = reverse("admin:games_game_change", args=[1])
+        player_admin = reverse("admin:gamesessions_player_change", args=[1])
+        session_admin = reverse(
+            "admin:gamesessions_gamesession_change", args=[1],
+        )
+        response = self.client.get(game_admin)
+        self.assertContains(response, session_admin)
+        public_link = response.context["absolute_url"]
+        self.assertContains(response, f'href="{public_link}"')
+        game = Game.objects.get(pk=1)
+        self.assertRedirects(
+            self.client.get(public_link),
+            f"http://testserver{game.get_absolute_url()}",
+        )
+        self.assertContains(self.client.get(player_admin), session_admin)
+
+    def test_bulk_cancel_skips_completed_sessions(self) -> None:
+        """Административное действие меняет только активные сессии."""
+        completed = GameSession.objects.create(
+            player_id=1, game_id=1, session_date=date(2026, 9, 10), hours=1,
+            status=GameSession.Status.COMPLETED,
+        )
+        response = self.client.post(
+            reverse("admin:gamesessions_gamesession_changelist"),
+            {
+                "action": "cancel_sessions",
+                "_selected_action": [1, completed.pk],
+                "index": 0,
+            },
+        )
+        self.assertEqual(response.status_code, 302)
+        self.assertFalse(GameSession.objects.active().exists())
+        self.assertEqual(GameSession.objects.completed().get(), completed)

@@ -33,5 +33,6 @@ class LibraryTestCase(TestCase):
         )
         GameSession.objects.create(
             pk=2, player_id=2, game_id=1,
-            session_date=date(2026, 9, 11), hours=2, is_cancelled=True,
+            session_date=date(2026, 9, 11), hours=2,
+            status=GameSession.Status.CANCELLED,
         )

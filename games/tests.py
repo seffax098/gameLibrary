@@ -1,8 +1,12 @@
 """Тесты страниц приложения games."""
 
+from datetime import date
+
 from django.urls import resolve, reverse
 
 from games import views
+from games.models import Game
+from gamesessions.models import GameSession
 from homepage.testing import LibraryTestCase
 
 
@@ -25,7 +29,8 @@ class GamesPagesTests(LibraryTestCase):
         self.assertTemplateUsed(response, "games/includes/game_row.html")
         self.assertContains(response, "<title>Игры - Игровая библиотека")
         self.assertContains(response, "The Witcher 3")
-        self.assertContains(response, 'href="/games/1/"')
+        url = Game.objects.get(pk=1).get_absolute_url()
+        self.assertContains(response, f'href="{url}"')
         self.assertContains(response, "10/10 - шедевр")
         self.assertContains(response, "Всего игр: 2")
 
@@ -82,10 +87,38 @@ class GamesPagesTests(LibraryTestCase):
         self.assertContains(response, "Игра не найдена", status_code=404)
         self.assertContains(response, 'href="/games/"', status_code=404)
 
-    def test_non_numeric_id_is_not_routed(self) -> None:
-        """Конвертер int не пропускает нечисловой идентификатор."""
+    def test_unknown_slug_returns_404(self) -> None:
+        """По отсутствующему слагу возвращается ошибка 404."""
         response = self.client.get("/games/witcher/")
-        self.assertEqual(response.status_code, 404)
+        self.assertContains(response, "Игра не найдена", status_code=404)
+
+    def test_slug_remains_unique_and_stable_after_rename(self) -> None:
+        """Одинаковые названия дают разные URL, переименование их сохраняет."""
+        fields = {
+            "title": "Ведьмак", "platform": "PC", "release_year": 2015,
+            "hours_total": 49,
+        }
+        first = Game.objects.create(**fields)
+        second = Game.objects.create(**fields)
+        url = first.get_absolute_url()
+        self.assertRegex(first.slug, r"^vedmak-[a-z0-9]+$")
+        self.assertNotEqual(url, second.get_absolute_url())
+        first.title = "Ведьмак 3"
+        first.save(update_fields=["title"])
+        first.refresh_from_db()
+        self.assertEqual(first.get_absolute_url(), url)
+        self.assertContains(self.client.get(url), first.title)
+
+    def test_database_recalculates_long_game_after_update(self) -> None:
+        """База пересчитывает признак после обновления часов через QuerySet."""
+        game = Game.objects.get(pk=2)
+        self.assertFalse(game.is_long)
+        Game.objects.filter(pk=game.pk).update(hours_total=50)
+        game.refresh_from_db()
+        self.assertTrue(game.is_long)
+        self.assertContains(
+            self.client.get(game.get_absolute_url()), "Длительная игра"
+        )
 
 
 class GameSearchTests(LibraryTestCase):
@@ -150,7 +183,7 @@ class UnplayedGamesTests(LibraryTestCase):
         )
 
     def test_without_player_shows_only_form(self) -> None:
-        """Пока игрок не выбран, запрос к играм не выполняется."""
+        """Пока игрок не выбран, результаты подбора не отображаются."""
         response = self.client.get("/games/unplayed/")
         self.assertTemplateUsed(response, "games/game_unplayed.html")
         self.assertIsNone(response.context["player"])
@@ -168,6 +201,24 @@ class UnplayedGamesTests(LibraryTestCase):
         """У Анны сессия по игре отменена - игра остаётся в списке."""
         response = self.client.get("/games/unplayed/", {"user": 2})
         self.assertEqual(len(response.context["games"]), 2)
+
+    def test_date_excludes_only_active_sessions(self) -> None:
+        """Отменённая и завершённая сессии игру на дату не исключают."""
+        selected = date(2026, 9, 10)
+        GameSession.objects.create(
+            player_id=1, game_id=2, session_date=selected, hours=2,
+            status=GameSession.Status.COMPLETED,
+        )
+        GameSession.objects.create(
+            player_id=1, game_id=2, session_date=selected, hours=2,
+            status=GameSession.Status.CANCELLED,
+        )
+        response = self.client.get(
+            "/games/unplayed/", {"user": "1", "date": selected.isoformat()},
+        )
+        self.assertEqual([game.pk for game in response.context["games"]], [2])
+        response = self.client.get("/games/unplayed/", {"user": 1})
+        self.assertEqual(list(response.context["games"]), [])
 
     def test_unknown_player(self) -> None:
         """Несуществующий игрок не выбирается."""

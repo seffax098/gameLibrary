@@ -15,7 +15,7 @@
                         <div class="col">
                             <div class="fact-label">Игра</div>
                             <div>
-                                <a href="{% url 'games:detail' session.game_id %}">
+                                <a href="{{ session.game.get_absolute_url }}">
                                     {{ session.game.title }}
                                 </a>
                             </div>

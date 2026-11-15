@@ -1,5 +1,7 @@
 """Django-модели приложения игровых сессий."""
 
+from datetime import date
+
 from django.db import models
 
 from models import User
@@ -12,6 +14,12 @@ class Player(models.Model):
     name = models.CharField("имя", max_length=150)
     email = models.EmailField("электронная почта", unique=True)
 
+    class Meta:  # pylint: disable=too-few-public-methods
+        """Названия игрока в административной панели."""
+
+        verbose_name = "игрок"
+        verbose_name_plural = "Игроки"
+
     def __str__(self) -> str:
         return str(self.name)
 
@@ -20,23 +28,60 @@ class Player(models.Model):
         return User(self.pk, self.name, self.email)
 
 
+class GameSessionQuerySet(models.QuerySet["GameSession"]):
+    """Повторно используемые выборки из истории сессий."""
+
+    def active(self) -> "GameSessionQuerySet":
+        """Выбрать активные сессии."""
+        return self.filter(status=GameSession.Status.ACTIVE)
+
+    def cancelled(self) -> "GameSessionQuerySet":
+        """Выбрать отменённые сессии."""
+        return self.filter(status=GameSession.Status.CANCELLED)
+
+    def completed(self) -> "GameSessionQuerySet":
+        """Выбрать завершённые сессии."""
+        return self.filter(status=GameSession.Status.COMPLETED)
+
+    def played(self) -> "GameSessionQuerySet":
+        """Выбрать сессии, часы которых учитываются в прогрессе."""
+        return self.filter(status__in=PLAYED_STATUSES)
+
+    def for_date(self, session_date: date) -> "GameSessionQuerySet":
+        """Выбрать сессии за указанную дату."""
+        return self.filter(session_date=session_date)
+
+
 class GameSession(models.Model):
     """Запись об игре пользователя за конкретный день."""
 
-    objects = models.Manager["GameSession"]()
+    class Status(models.TextChoices):
+        """Состояние записи в истории сессий."""
+
+        ACTIVE = "active", "активна"
+        CANCELLED = "cancelled", "отменена"
+        COMPLETED = "completed", "завершена"
+
+    objects = GameSessionQuerySet.as_manager()
     player = models.ForeignKey(
-        Player, on_delete=models.CASCADE, related_name="sessions"
+        Player, on_delete=models.CASCADE, related_name="sessions",
+        verbose_name="игрок",
     )
     game = models.ForeignKey(
-        "games.Game", on_delete=models.CASCADE, related_name="sessions"
+        "games.Game", on_delete=models.CASCADE, related_name="sessions",
+        verbose_name="игра",
     )
     session_date = models.DateField("дата")
     hours = models.FloatField("сыграно часов")
-    is_cancelled = models.BooleanField("отменена", default=False)
+    status = models.CharField(
+        "статус", max_length=9, choices=Status.choices, default=Status.ACTIVE,
+    )
 
     class Meta:  # pylint: disable=too-few-public-methods
-        """Ограничения часов и числа активных сессий за день."""
+        """Названия в админке и ограничения данных сессии."""
 
+        verbose_name = "игровая сессия"
+        verbose_name_plural = "Игровые сессии"
         constraints = [
             models.CheckConstraint(
                 condition=models.Q(hours__gt=0),
@@ -44,10 +89,19 @@ class GameSession(models.Model):
             ),
             models.UniqueConstraint(
                 fields=["player", "game", "session_date"],
-                condition=models.Q(is_cancelled=False),
+                condition=models.Q(status="active"),
                 name="unique_active_session_per_day",
+            ),
+            models.CheckConstraint(
+                condition=models.Q(
+                    status__in=("active", "cancelled", "completed")
+                ),
+                name="game_session_valid_status",
             ),
         ]
 
     def __str__(self) -> str:
-        return f"Сессия №{self.pk} ({self.session_date})"
+        return f"{self.player} — {self.game}, {self.session_date:%d.%m.%Y}"
+
+
+PLAYED_STATUSES = (GameSession.Status.ACTIVE, GameSession.Status.COMPLETED)

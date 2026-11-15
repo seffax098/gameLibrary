@@ -33,6 +33,15 @@
                 <input type="date" id="date" name="date" value="{{ selected_date|date:'Y-m-d' }}" class="form-control">
             </div>
             <div class="col-md-4">
+                <label for="status" class="form-label">Статус</label>
+                <select id="status" name="status" class="form-select">
+                    <option value="">Любой</option>
+                    {% for value, label in status_options %}
+                        <option value="{{ value }}"{% if value == selected_status %} selected{% endif %}>{{ label|capfirst }}</option>
+                    {% endfor %}
+                </select>
+            </div>
+            <div class="col-md-4">
                 <label for="sort" class="form-label">Сортировка</label>
                 <select id="sort" name="sort" class="form-select">
                     {% for value, label in sort_options %}
@@ -62,7 +71,7 @@
                 </thead>
                 <tbody>
                     {% for session in sessions %}
-                        <tr{% if session.is_cancelled %} class="row-cancelled"{% endif %}>
+                        <tr{% if session.status == session.Status.CANCELLED %} class="row-cancelled"{% endif %}>
                             <td>
                                 <a href="{% url 'gamesessions:detail' session.id %}" class="fw-medium">
                                     №{{ session.id }}
@@ -71,7 +80,7 @@
                             <td>{{ session.session_date|date:"d.m.Y" }}</td>
                             <td>{{ session.player.name }}</td>
                             <td>
-                                <a href="{% url 'games:detail' session.game_id %}">
+                                <a href="{{ session.game.get_absolute_url }}">
                                     {{ session.game.title }}
                                 </a>
                             </td>

@@ -4,7 +4,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
-    <title>{% block title %}Игровая библиотека{% endblock %}</title>
+    <title>{% block title %}{{ site_name }}{% endblock %}</title>
     <link rel="icon" href="{% static 'homepage/img/logo.png' %}">
     <link
         rel="stylesheet"
@@ -26,7 +26,7 @@
 
     <footer class="site-footer">
         <div class="container py-4 small">
-            © <span id="current-year"></span> Игровая библиотека
+            © <span id="current-year"></span> {{ site_name }}
         </div>
     </footer>
 

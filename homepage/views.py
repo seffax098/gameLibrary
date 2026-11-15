@@ -7,7 +7,7 @@ from django.http import HttpRequest, HttpResponse
 from django.shortcuts import render
 
 from games.models import Game
-from gamesessions.models import GameSession, Player
+from gamesessions.models import PLAYED_STATUSES, GameSession, Player
 
 DEFAULT_MIN_HOURS = 10.0
 
@@ -19,19 +19,28 @@ def index(request: HttpRequest) -> HttpResponse:
     )
     summary["users_count"] = Player.objects.count()
     summary.update(GameSession.objects.aggregate(
-        sessions_count=Count("pk", filter=Q(is_cancelled=False)),
-        cancelled_count=Count("pk", filter=Q(is_cancelled=True)),
-        hours_played=Sum("hours", filter=Q(is_cancelled=False), default=0),
+        sessions_count=Count("pk", filter=Q(status=GameSession.Status.ACTIVE)),
+        cancelled_count=Count(
+            "pk", filter=Q(status=GameSession.Status.CANCELLED),
+        ),
+        completed_count=Count(
+            "pk", filter=Q(status=GameSession.Status.COMPLETED),
+        ),
+        hours_played=Sum(
+            "hours", filter=Q(status__in=PLAYED_STATUSES), default=0,
+        ),
     ))
-    top_games = Game.objects.filter(sessions__is_cancelled=False).annotate(
+    played = Q(sessions__status__in=PLAYED_STATUSES)
+    top_games = Game.objects.filter(played).annotate(
         hours=Sum("sessions__hours")
     ).order_by("-hours", "pk")[:3]
-    top_players = Player.objects.filter(sessions__is_cancelled=False).annotate(
+    top_players = Player.objects.filter(played).annotate(
         hours=Sum("sessions__hours")
     ).order_by("-hours", "pk")[:3]
 
     return render(request, "homepage/index.html", {
         "summary": summary, "top_games": top_games, "top_players": top_players,
+        "library_games_count": summary["games_count"],
     })
 
 
@@ -52,14 +61,24 @@ def statistics(request: HttpRequest) -> HttpResponse:
         last_year=Max("release_year"),
     ).order_by("-games_count", "platform")
 
-    active = Q(sessions__is_cancelled=False)
+    played = Q(sessions__status__in=PLAYED_STATUSES)
     players = Player.objects.values("id", "name").annotate(
-        sessions_count=Count("sessions", filter=active),
-        games_count=Count("sessions__game", distinct=True, filter=active),
-        hours=Sum("sessions__hours", filter=active, default=0),
+        sessions_count=Count(
+            "sessions", filter=Q(sessions__status=GameSession.Status.ACTIVE),
+        ),
+        completed_count=Count(
+            "sessions",
+            filter=Q(sessions__status=GameSession.Status.COMPLETED),
+        ),
+        cancelled_count=Count(
+            "sessions",
+            filter=Q(sessions__status=GameSession.Status.CANCELLED),
+        ),
+        games_count=Count("sessions__game", distinct=True, filter=played),
+        hours=Sum("sessions__hours", filter=played, default=0),
     ).order_by("-hours", "name", "id")
-    popular = Game.objects.filter(sessions__is_cancelled=False).values(
-        "id", "title"
+    popular = Game.objects.filter(played).values(
+        "id", "title", "slug"
     ).annotate(
         sessions_count=Count("sessions"), hours=Sum("sessions__hours")
     ).filter(hours__gte=min_hours).order_by("-hours", "id")
