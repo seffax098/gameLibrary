@@ -1,0 +1,8 @@
+{% extends "base.html" %}
+
+{% block title %}Страница не найдена - {{ block.super }}{% endblock %}
+
+{% block content %}
+    {% url 'homepage:index' as index_url %}
+    {% include "includes/not_found.html" with message="Страница не найдена" details="Адреса нет среди маршрутов проекта." url=index_url text="на главную" %}
+{% endblock %}

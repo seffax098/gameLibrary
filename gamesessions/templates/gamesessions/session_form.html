@@ -1,0 +1,26 @@
+{% extends "base.html" %}
+
+{% block title %}{% if session %}Редактирование сессии{% else %}Новая сессия{% endif %} - {{ block.super }}{% endblock %}
+
+{% block content %}
+    {% if session %}
+        {% url 'gamesessions:detail' session.pk as back_url %}
+        {% include "includes/back_link.html" with url=back_url text="К сессии" %}
+        <h1 class="mb-4">Редактирование сессии №{{ session.pk }}</h1>
+    {% else %}
+        {% url 'gamesessions:list' as back_url %}
+        {% include "includes/back_link.html" with url=back_url text="Игровые сессии" %}
+        <h1 class="mb-4">Новая игровая сессия</h1>
+    {% endif %}
+
+    <form method="post" class="panel p-4 col-lg-6">
+        {% csrf_token %}
+        {% include "includes/form_errors.html" %}
+        {% for field in form %}
+            <div class="mb-3">
+                {% include "includes/form_field.html" %}
+            </div>
+        {% endfor %}
+        <button type="submit" class="btn btn-dark">Сохранить</button>
+    </form>
+{% endblock %}

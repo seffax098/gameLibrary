@@ -1,0 +1,66 @@
+{% extends "base.html" %}
+
+{% block title %}Во что поиграть - {{ block.super }}{% endblock %}
+
+{% block content %}
+    {% url 'games:list' as games_url %}
+    {% include "includes/back_link.html" with url=games_url text="Игры" %}
+    <h1 class="mb-1">Во что поиграть</h1>
+    <p class="text-muted mb-4">
+        Без даты подбор учитывает всю историю игрока.
+        Укажите дату, чтобы увидеть игры без активной сессии игрока на этот день.
+    </p>
+
+    <form method="get" class="panel p-4 mb-4">
+        <div class="row g-3 align-items-end">
+            <div class="col-md-6">
+                <label for="user" class="form-label">Игрок</label>
+                <select id="user" name="user" class="form-select">
+                    <option value="">Выберите игрока</option>
+                    {% for user in users %}
+                        <option value="{{ user.id }}"{% if user.id == player.id %} selected{% endif %}>
+                            {{ user.name }}
+                        </option>
+                    {% endfor %}
+                </select>
+            </div>
+            <div class="col-md-4">
+                <label for="date" class="form-label">Дата (необязательно)</label>
+                <input type="date" id="date" name="date" value="{{ selected_date|date:'Y-m-d' }}" class="form-control">
+            </div>
+            <div class="col-md-2">
+                <button type="submit" class="btn btn-dark w-100">Показать</button>
+            </div>
+        </div>
+    </form>
+
+    {% if date_error %}
+        <p class="text-danger">{{ date_error.0 }}</p>
+    {% elif player %}
+        <h2 class="h5 mb-3">
+            {% if selected_date %}
+                Игры без активной сессии у {{ player.name }} на {{ selected_date|date:'d.m.Y' }}
+            {% else %}
+                {{ player.name }} ещё не играл(а)
+            {% endif %}
+            <span class="text-muted fw-normal">{{ games|length }}</span>
+        </h2>
+        <ul class="panel plain-list list-unstyled">
+            {% for game in games %}
+                <li>
+                    <a href="{{ game.get_absolute_url }}">{{ game.title }}</a>
+                    <span class="text-muted">
+                        {{ game.genre }}, {{ game.platform }},
+                        около {{ game.hours_total|floatformat:0 }} ч
+                    </span>
+                </li>
+            {% empty %}
+                {% if selected_date %}
+                    <li class="text-muted">На эту дату подходящих игр нет.</li>
+                {% else %}
+                    <li class="text-muted">Игрок уже играл во все игры библиотеки.</li>
+                {% endif %}
+            {% endfor %}
+        </ul>
+    {% endif %}
+{% endblock %}

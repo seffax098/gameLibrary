@@ -1,0 +1,20 @@
+{% extends "base.html" %}
+
+{% block title %}Новая игра - {{ block.super }}{% endblock %}
+
+{% block content %}
+    {% url 'games:list' as games_url %}
+    {% include "includes/back_link.html" with url=games_url text="Игры" %}
+    <h1 class="mb-4">Новая игра</h1>
+
+    <form method="post" enctype="multipart/form-data" class="panel p-4 col-lg-6">
+        {% csrf_token %}
+        {% include "includes/form_errors.html" %}
+        {% for field in form %}
+            <div class="mb-3">
+                {% include "includes/form_field.html" %}
+            </div>
+        {% endfor %}
+        <button type="submit" class="btn btn-dark">Добавить игру</button>
+    </form>
+{% endblock %}

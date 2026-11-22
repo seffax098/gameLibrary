@@ -1,0 +1,186 @@
+/* Собственные стили игровой библиотеки поверх Bootstrap 5.3. */
+
+:root {
+    --ink: #111827;
+    --muted: #6b7280;
+    --line: #e5e7eb;
+    --surface: #f9fafb;
+    --accent: #4f46e5;
+    --bs-body-font-family: "Inter", system-ui, sans-serif;
+    --bs-body-color: var(--ink);
+    --bs-body-bg: #ffffff;
+    --bs-border-color: var(--line);
+    --bs-link-color-rgb: 79, 70, 229;
+    --bs-link-hover-color-rgb: 67, 56, 202;
+}
+
+body {
+    min-height: 100vh;
+    -webkit-font-smoothing: antialiased;
+}
+
+h1,
+h2 {
+    font-weight: 600;
+    letter-spacing: -0.02em;
+}
+
+/* Шапка и подвал */
+
+.site-nav {
+    border-bottom: 1px solid var(--line);
+}
+
+.site-nav .navbar-brand {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    font-weight: 700;
+    color: var(--ink);
+}
+
+.site-logo {
+    width: 28px;
+    height: 28px;
+}
+
+.site-nav .nav-link {
+    color: var(--muted);
+}
+
+.site-nav .nav-link:hover,
+.site-nav .nav-link.active {
+    color: var(--ink);
+}
+
+.site-nav .nav-link.active {
+    font-weight: 500;
+}
+
+.site-footer {
+    color: var(--muted);
+    border-top: 1px solid var(--line);
+}
+
+/* Панели, подписи и показатели */
+
+.panel {
+    border: 1px solid var(--line);
+    border-radius: 12px;
+    background: #ffffff;
+}
+
+.section-label {
+    color: var(--muted);
+    font-size: 0.75rem;
+    font-weight: 500;
+    letter-spacing: 0.06em;
+    text-transform: uppercase;
+}
+
+.stat-value {
+    font-size: 1.75rem;
+    font-weight: 600;
+}
+
+.fact-label {
+    color: var(--muted);
+    font-size: 0.8125rem;
+}
+
+.back-link {
+    color: var(--muted);
+    text-decoration: none;
+}
+
+.back-link:hover {
+    color: var(--ink);
+}
+
+/* Таблицы и списки */
+
+.table {
+    margin-bottom: 0;
+}
+
+.table th {
+    color: var(--muted);
+    font-size: 0.75rem;
+    font-weight: 500;
+    letter-spacing: 0.06em;
+    text-transform: uppercase;
+    background: var(--surface);
+}
+
+.table td,
+.table th {
+    padding: 0.85rem 1rem;
+}
+
+.table a,
+.plain-list a {
+    color: var(--ink);
+    text-decoration: none;
+}
+
+.table a:hover,
+.plain-list a:hover {
+    color: var(--accent);
+}
+
+.row-cancelled td,
+.row-cancelled a {
+    color: var(--muted);
+}
+
+.table-filter {
+    max-width: 260px;
+}
+
+.plain-list > li {
+    display: flex;
+    justify-content: space-between;
+    gap: 1rem;
+    padding: 0.85rem 1.25rem;
+    border-top: 1px solid var(--line);
+}
+
+.plain-list > li:first-child {
+    border-top: none;
+}
+
+/* Статусы прохождения и сессий */
+
+.status-badge {
+    font-weight: 600;
+}
+
+.status-completed {
+    color: #047857;
+    background: #ecfdf5;
+}
+
+.status-in-progress {
+    color: #b45309;
+    background: #fffbeb;
+}
+
+.status-muted {
+    color: #4b5563;
+    background: #f3f4f6;
+}
+
+.progress {
+    height: 6px;
+    background: var(--line);
+}
+
+.progress-bar {
+    background: var(--accent);
+}
+
+.btn {
+    border-radius: 8px;
+    padding: 0.5rem 1rem;
+    font-weight: 500;
+}

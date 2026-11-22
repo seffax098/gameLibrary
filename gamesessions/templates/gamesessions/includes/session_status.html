@@ -1,0 +1,3 @@
+<span class="badge rounded-pill status-badge session-status session-status-{{ session.status }} {% if session.status == session.Status.CANCELLED %}status-muted{% elif session.status == session.Status.COMPLETED %}status-completed{% else %}text-bg-primary{% endif %}">
+    {{ session.get_status_display }}
+</span>

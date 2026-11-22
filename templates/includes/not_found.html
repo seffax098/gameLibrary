@@ -1,0 +1,6 @@
+<p class="section-label mb-2">Ошибка 404</p>
+<h1 class="mb-3">{{ message }}</h1>
+{% if details %}
+    <p class="text-muted mb-4">{{ details }}</p>
+{% endif %}
+<a href="{{ url }}" class="btn btn-outline-secondary">← {{ text }}</a>
