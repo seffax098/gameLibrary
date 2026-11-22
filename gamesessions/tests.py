@@ -42,6 +42,10 @@ class SessionsPagesTests(LibraryTestCase):
         self.assertContains(response, "session-status-active")
         self.assertContains(response, "session-status-cancelled")
         self.assertContains(response, "Всего сессий: 2")
+        self.assertContains(response, '<option value="-date" selected>')
+        self.assertEqual(
+            [session.pk for session in response.context["sessions"]], [2, 1],
+        )
 
     def test_session_detail_shows_linked_objects(self) -> None:
         """Карточка сессии показывает связанные игру и игрока."""
@@ -81,23 +85,27 @@ class SessionsPagesTests(LibraryTestCase):
                 hours=1,
             )
         params = {
-            "q": "witcher", "player": "1", "status": "active", "sort": "-date",
+            "q": "witcher", "player": "1", "status": "active", "sort": "date",
         }
         response = self.client.get("/sessions/", params)
         self.assertContains(
             response,
-            "?q=witcher&amp;player=1&amp;status=active&amp;sort=-date"
+            "?q=witcher&amp;player=1&amp;status=active&amp;sort=date"
             "&amp;page=2",
         )
         self.assertEqual(
             [session.session_date.day for session in response.context[
                 "sessions"
             ]],
-            [16, 15, 14, 13, 12],
+            [10, 12, 13, 14, 15],
         )
         response = self.client.get("/sessions/", {**params, "page": "2"})
-        self.assertContains(response, 'href="/sessions/1/"')
-        self.assertNotContains(response, 'href="/sessions/2/"')
+        self.assertEqual(
+            [session.session_date.day for session in response.context[
+                "sessions"
+            ]],
+            [16],
+        )
 
     def test_invalid_filters_and_page_fall_back(self) -> None:
         """Некорректные параметры заменяются значениями по умолчанию."""

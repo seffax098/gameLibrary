@@ -11,6 +11,7 @@ from django.utils import timezone
 from django.views.decorators.http import require_http_methods, require_POST
 
 from gamesessions.forms import (
+    DEFAULT_SESSION_SORT,
     SESSION_CONFLICT, SESSION_ORDER, GameSessionForm, SessionFilters,
 )
 from gamesessions.models import GameSession
@@ -38,7 +39,7 @@ def sessions(request: HttpRequest) -> HttpResponse:
     if status := filters.get("status"):
         sessions_list = sessions_list.filter(status=status)
 
-    sort = filters.get("sort") or "date"
+    sort = filters.get("sort") or DEFAULT_SESSION_SORT
     sessions_list = sessions_list.order_by(SESSION_ORDER[sort][1], "pk")
     page = Paginator(sessions_list, 5).get_page(request.GET.get("page"))
     return render(request, "gamesessions/session_list.html", {

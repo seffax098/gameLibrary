@@ -9,9 +9,10 @@ from games.models import Game
 from gamesessions.models import GameSession, Player
 
 
+DEFAULT_SESSION_SORT = "-date"
 SESSION_ORDER = {
+    DEFAULT_SESSION_SORT: ("Дата ↓", "-session_date"),
     "date": ("Дата ↑", "session_date"),
-    "-date": ("Дата ↓", "-session_date"),
     "game": ("Игра", "game__title"),
     "player": ("Игрок", "player__name"),
     "-hours": ("Сыгранные часы ↓", "-hours"),
@@ -53,7 +54,7 @@ class SessionFilters(forms.Form):
         widget=forms.Select(attrs={"class": "form-select"}),
     )
     sort = forms.ChoiceField(
-        label="Сортировка", required=False, initial="date",
+        label="Сортировка", required=False, initial=DEFAULT_SESSION_SORT,
         choices=[(key, label) for key, (label, _) in SESSION_ORDER.items()],
         widget=forms.Select(attrs={"class": "form-select"}),
     )
