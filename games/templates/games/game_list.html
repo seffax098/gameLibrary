@@ -9,6 +9,9 @@
             <p class="text-muted mb-2">
                 Всего игр: {{ games|length }}
             </p>
+            <a href="{% url 'games:create' %}" class="btn btn-sm btn-dark">
+                Добавить игру
+            </a>
             <a href="{% url 'games:search' %}" class="btn btn-sm btn-outline-secondary">
                 Найти игру
             </a>

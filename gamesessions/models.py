@@ -55,6 +55,8 @@ class GameSessionQuerySet(models.QuerySet["GameSession"]):
 class GameSession(models.Model):
     """Запись об игре пользователя за конкретный день."""
 
+    # TextChoices наследует стандартные классы Django и Enum.
+    # pylint: disable-next=too-many-ancestors
     class Status(models.TextChoices):
         """Состояние записи в истории сессий."""
 
@@ -102,6 +104,15 @@ class GameSession(models.Model):
 
     def __str__(self) -> str:
         return f"{self.player} — {self.game}, {self.session_date:%d.%m.%Y}"
+
+    def cancel(self) -> bool:
+        """Перевести активную сессию в отменённые."""
+        updated = self.__class__.objects.active().filter(pk=self.pk).update(
+            status=self.Status.CANCELLED
+        )
+        if updated:
+            self.status = self.Status.CANCELLED
+        return bool(updated)
 
 
 PLAYED_STATUSES = (GameSession.Status.ACTIVE, GameSession.Status.COMPLETED)

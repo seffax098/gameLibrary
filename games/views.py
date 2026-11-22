@@ -2,11 +2,12 @@
 
 import re
 
-from django import forms
 from django.db.models import Q, QuerySet, Sum
 from django.http import HttpRequest, HttpResponse
-from django.shortcuts import render
+from django.shortcuts import redirect, render
+from django.views.decorators.http import require_http_methods
 
+from games.forms import AvailabilityDateForm, GameForm
 from games.models import Game
 from gamesessions.models import PLAYED_STATUSES, GameSession, Player
 from models import Progress
@@ -32,13 +33,29 @@ def games(request: HttpRequest) -> HttpResponse:
     return render(request, "games/game_list.html", {"games": games_list})
 
 
+@require_http_methods(["GET", "HEAD", "POST"])
+def game_create(request: HttpRequest) -> HttpResponse:
+    """Добавить игру в каталог и открыть её карточку."""
+    if request.method == "POST":
+        form = GameForm(request.POST, request.FILES)
+        if form.is_valid():
+            return redirect(form.save())
+    else:
+        form = GameForm()
+    return render(request, "games/game_form.html", {"form": form})
+
+
 def game_detail(
     request: HttpRequest, game_id: int | None = None, slug: str | None = None,
 ) -> HttpResponse:
     """Карточка игры, сыгранные сессии и прогресс всех игроков."""
     try:
-        key = {"slug": slug} if slug is not None else {"pk": game_id}
-        entry = Game.objects.get(**key)
+        if slug is not None:
+            entry = Game.objects.get(slug=slug)
+        elif game_id is not None:
+            entry = Game.objects.get(pk=game_id)
+        else:
+            raise Game.DoesNotExist
     except Game.DoesNotExist:
         return render(
             request, "games/game_detail.html", {"game": None}, status=404
@@ -60,6 +77,7 @@ def game_detail(
     ).select_related("player").order_by("session_date", "pk")
     context = {
         "game": game,
+        "cover": entry.cover,
         "is_long": entry.is_long,
         "players": [
             Progress(player.as_library_user(), game, player.played)
@@ -126,9 +144,3 @@ def unplayed_games(request: HttpRequest) -> HttpResponse:
             "date"
         ),
     })
-
-
-class AvailabilityDateForm(forms.Form):
-    """Проверка необязательной даты в подборе игр."""
-
-    date = forms.DateField(required=False, input_formats=["%Y-%m-%d"])

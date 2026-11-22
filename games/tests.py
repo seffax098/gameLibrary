@@ -1,8 +1,14 @@
 """Тесты страниц приложения games."""
 
 from datetime import date
+from io import BytesIO
+from pathlib import Path
+from tempfile import TemporaryDirectory
 
+from django.contrib.auth.models import User
+from django.core.files.uploadedfile import SimpleUploadedFile
 from django.urls import resolve, reverse
+from PIL import Image
 
 from games import views
 from games.models import Game
@@ -225,3 +231,62 @@ class UnplayedGamesTests(LibraryTestCase):
         response = self.client.get("/games/unplayed/", {"user": 999})
         self.assertIsNone(response.context["player"])
         self.assertEqual(response.context["games"], [])
+
+
+class GameCoverTests(LibraryTestCase):
+    """Загрузка обложек в каталоге и в Django Admin."""
+
+    def setUp(self) -> None:
+        self.url = reverse("games:create")
+        self.data = {
+            "title": "Game with a cover", "genre": "RPG", "platform": "PC",
+            "release_year": 2020, "hours_total": 10,
+        }
+
+    def test_upload_and_replace_cover(self) -> None:
+        """Изображение сохраняется на диске и отображается в карточке игры."""
+        buffer = BytesIO()
+        Image.new("RGB", (3, 4)).save(buffer, format="PNG")
+        content = buffer.getvalue()
+        with TemporaryDirectory() as media_root, self.settings(
+            MEDIA_ROOT=media_root,
+        ):
+            response = self.client.post(self.url, {
+                **self.data, "cover": SimpleUploadedFile("cover.png", content),
+            })
+            game = Game.objects.get(title=self.data["title"])
+            self.assertRedirects(response, game.get_absolute_url())
+            self.assertEqual(Path(game.cover.path).read_bytes(), content)
+            self.assertContains(
+                self.client.get(game.get_absolute_url()), game.cover.url,
+            )
+
+            admin_user = User.objects.create_superuser("cover-test")
+            self.client.force_login(admin_user)
+            response = self.client.post(
+                reverse("admin:games_game_change", args=[game.pk]), {
+                    **self.data, "_save": "1",
+                    "sessions-TOTAL_FORMS": "0", "sessions-INITIAL_FORMS": "0",
+                    "cover": SimpleUploadedFile("new.png", content),
+                },
+            )
+            self.assertEqual(response.status_code, 302)
+            game.refresh_from_db()
+            self.assertEqual(game.cover.name, "games/covers/new.png")
+            self.assertContains(
+                self.client.get(game.get_absolute_url()), game.cover.url,
+            )
+
+    def test_rejects_non_image_and_allows_blank_cover(self) -> None:
+        """Отклонить поддельное изображение и принять форму без обложки."""
+        response = self.client.post(self.url, {
+            **self.data, "cover": SimpleUploadedFile("invalid.png", b"text"),
+        })
+        self.assertContains(response, 'id="id_cover_error"')
+        self.assertFalse(
+            Game.objects.filter(title=self.data["title"]).exists()
+        )
+        response = self.client.post(self.url, self.data)
+        self.assertContains(
+            self.client.get(response["Location"]), "Обложка не загружена.",
+        )

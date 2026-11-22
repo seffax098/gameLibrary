@@ -3,7 +3,9 @@
 from datetime import date
 from uuid import uuid4
 
-from django.core.validators import MaxValueValidator, MinValueValidator
+from django.core.validators import (
+    FileExtensionValidator, MaxValueValidator, MinValueValidator,
+)
 from django.db import models
 from django.urls import reverse
 from django.utils.text import slugify
@@ -55,6 +57,11 @@ class Game(models.Model):
     rating = models.PositiveSmallIntegerField(
         "оценка", null=True, blank=True,
         validators=[MinValueValidator(1), MaxValueValidator(MAX_RATING)],
+    )
+    cover = models.ImageField(
+        "обложка", upload_to="games/covers/", blank=True,
+        validators=[FileExtensionValidator(["jpg", "jpeg", "png", "webp"])],
+        help_text="Необязательное изображение в формате JPEG, PNG или WebP.",
     )
 
     class Meta:  # pylint: disable=too-few-public-methods

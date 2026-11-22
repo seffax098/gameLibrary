@@ -9,6 +9,8 @@ Github - https://github.com/seffax098/gameLibrary
 Django и собственные статические файлы, а в ПР7 получает данные из
 базы SQLite SQL-запросами. В ПР9 веб-интерфейс переведён на Django ORM.
 В ПР10 добавлены админ-панель, статусы сессий и адреса игр со слагами.
+В ПР11 добавлены формы фильтрации, записи и редактирования сессий,
+отмена сессий через веб-интерфейс и загрузка обложек игр.
 
 ## Используемые технологии
 
@@ -44,11 +46,15 @@ Django и собственные статические файлы, а в ПР7 
 | `/` | `homepage:index` | `homepage.views.index()` | `homepage/index.html` |
 | `/statistics/` | `homepage:statistics` | `homepage.views.statistics()` | `homepage/statistics.html` |
 | `/games/` | `games:list` | `games.views.games()` | `games/game_list.html` |
+| `/games/add/` | `games:create` | `games.views.game_create()` | `games/game_form.html` |
 | `/games/search/` | `games:search` | `games.views.game_search()` | `games/game_search.html` |
 | `/games/unplayed/` | `games:unplayed` | `games.views.unplayed_games()` | `games/game_unplayed.html` |
 | `/games/<slug:slug>/`, `/games/<int:game_id>/` | `games:detail` | `games.views.game_detail()` | `games/game_detail.html` |
 | `/sessions/` | `gamesessions:list` | `gamesessions.views.sessions()` | `gamesessions/session_list.html` |
+| `/sessions/add/` | `gamesessions:create` | `gamesessions.views.session_form()` | `gamesessions/session_form.html` |
 | `/sessions/<int:session_id>/` | `gamesessions:detail` | `gamesessions.views.session_detail()` | `gamesessions/session_detail.html` |
+| `/sessions/<int:session_id>/edit/` | `gamesessions:edit` | `gamesessions.views.session_form()` | `gamesessions/session_form.html` |
+| `/sessions/<int:session_id>/cancel/` | `gamesessions:cancel` | `gamesessions.views.session_cancel()` | POST с возвратом в карточку |
 
 - главная — сводка библиотеки, популярные игры и самые активные игроки;
 - статистика — жанры, платформы, активность игроков, игры с заданным
@@ -68,8 +74,9 @@ Django и собственные статические файлы, а в ПР7 
 
 Приложения: `homepage` (главная, статистика, страница 404, статические
 файлы), `games`, `gamesessions` (название `sessions` занято встроенным
-`django.contrib.sessions`). В веб-версии данные редактируются через
-Django Admin. Консольная версия работает отдельно со своим хранилищем.
+`django.contrib.sessions`). В веб-версии основные операции доступны
+через формы сайта и Django Admin. Консольная версия работает отдельно
+со своим хранилищем.
 
 Представления получают данные через Django ORM и передают их шаблонам
 через контекст `render()`.
@@ -222,11 +229,32 @@ game.delete()
 
 На локальном сервере с `DEBUG=True` откройте панель **SQL** в Django
 Debug Toolbar. Список сессий делает пять SQL-запросов при непустой
-выборке: подсчёт для пагинации, выборка страницы с двумя `JOIN`,
+выборке и без заданных фильтров: подсчёт для пагинации, выборка страницы с двумя `JOIN`,
 два списка фильтров и подсчёт игр для навигации. Карточка сессии делает
 три запроса: получение сессии с игроком и игрой, подсчёт сыгранных часов
 и подсчёт игр для навигации. Показываемые строки не добавляют отдельных
 запросов к играм и игрокам. Числа закреплены в тестах Django.
+
+## Формы Django (ПР11)
+
+В истории сессий Django-форма проверяет GET-параметры поиска и фильтров.
+Ошибки отображаются у полей, корректные фильтры продолжают действовать,
+а ссылки пагинации сохраняют параметры запроса.
+
+В разделе «Игровые сессии» кнопка «Добавить сессию» открывает форму с
+текущей датой. Форма проверяет дату, положительное число часов и
+уникальность активной сессии для игрока, игры и даты. При редактировании
+активной сессии проверка пропускает саму запись. Если дата существующей
+сессии уже прошла, её можно сохранить при изменении других полей.
+Отмена меняет статус, освобождает дату и сохраняет запись в истории.
+Создание, редактирование и отмена выполняются POST-запросами с CSRF-токеном.
+
+После установки зависимостей и выполнения `python manage.py migrate`
+на странице «Игры» можно добавить игру с необязательной обложкой.
+Файлы JPEG, PNG или WebP сохраняются в `media/games/covers/`.
+Обложка видна на карточке игры, а для существующей игры её можно загрузить
+или заменить через Django Admin. Локальный сервер Django обслуживает
+медиафайлы из `MEDIA_ROOT` при `DEBUG=True`.
 
 ## База данных SQLite (ПР7)
 

@@ -44,3 +44,6 @@ Thumbs.db
 # Databases
 *.sqlite3
 *.db
+
+# Uploaded media
+/media/

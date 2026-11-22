@@ -6,7 +6,18 @@
     {% url 'gamesessions:list' as sessions_url %}
     {% if session %}
         {% include "includes/back_link.html" with url=sessions_url text="Игровые сессии" %}
-        <h1 class="mb-4">Сессия №{{ session.id }}</h1>
+        <div class="d-flex flex-wrap justify-content-between align-items-center gap-3 mb-4">
+            <h1 class="mb-0">Сессия №{{ session.id }}</h1>
+            {% if session.status == session.Status.ACTIVE %}
+                <div class="d-flex flex-wrap gap-2">
+                    <a href="{% url 'gamesessions:edit' session.pk %}" class="btn btn-outline-secondary">Редактировать</a>
+                    <form method="post" action="{% url 'gamesessions:cancel' session.pk %}">
+                        {% csrf_token %}
+                        <button type="submit" class="btn btn-outline-danger">Отменить сессию</button>
+                    </form>
+                </div>
+            {% endif %}
+        </div>
 
         <div class="row g-4">
             <div class="col-lg-6">

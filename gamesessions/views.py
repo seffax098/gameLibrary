@@ -2,56 +2,37 @@
 
 import re
 
-from django import forms
 from django.core.paginator import Paginator
+from django.db import IntegrityError, transaction
 from django.db.models import Q, Sum
-from django.http import HttpRequest, HttpResponse
-from django.shortcuts import render
+from django.http import Http404, HttpRequest, HttpResponse
+from django.shortcuts import get_object_or_404, redirect, render
+from django.utils import timezone
+from django.views.decorators.http import require_http_methods, require_POST
 
-from games.models import Game
-from gamesessions.models import GameSession, Player
+from gamesessions.forms import (
+    SESSION_CONFLICT, SESSION_ORDER, GameSessionForm, SessionFilters,
+)
+from gamesessions.models import GameSession
 from models import Progress
-
-SESSION_ORDER = {
-    "date": ("Дата ↑", "session_date"),
-    "-date": ("Дата ↓", "-session_date"),
-    "game": ("Игра", "game__title"),
-    "player": ("Игрок", "player__name"),
-    "-hours": ("Сыгранные часы ↓", "-hours"),
-}
-SESSION_SORT_CHOICES = [
-    (key, label) for key, (label, _) in SESSION_ORDER.items()
-]
-
-
-class SessionFilters(forms.Form):
-    """Проверка параметров поиска, фильтрации и сортировки."""
-
-    q = forms.CharField(required=False, max_length=255)
-    game = forms.IntegerField(required=False, min_value=1, max_value=2**63 - 1)
-    player = forms.IntegerField(
-        required=False, min_value=1, max_value=2**63 - 1
-    )
-    date = forms.DateField(required=False, input_formats=["%Y-%m-%d"])
-    sort = forms.ChoiceField(required=False, choices=SESSION_SORT_CHOICES)
-    status = forms.ChoiceField(required=False, choices=GameSession.Status)
 
 
 def sessions(request: HttpRequest) -> HttpResponse:
     """История сессий с поиском, фильтрами и пагинацией."""
-    form = SessionFilters(request.GET)
-    form.is_valid()
-    filters = form.cleaned_data
+    form = SessionFilters(request.GET or None)
+    # Применяем корректные фильтры, даже если другое поле содержит ошибку.
+    form.full_clean()
+    filters = form.cleaned_data if form.is_bound else {}
     sessions_list = GameSession.objects.select_related("player", "game")
     if query := filters.get("q"):
         pattern = re.escape(query)
         sessions_list = sessions_list.filter(
             Q(game__title__iregex=pattern) | Q(player__name__iregex=pattern)
         )
-    if game_id := filters.get("game"):
-        sessions_list = sessions_list.filter(game_id=game_id)
-    if player_id := filters.get("player"):
-        sessions_list = sessions_list.filter(player_id=player_id)
+    if game := filters.get("game"):
+        sessions_list = sessions_list.filter(game=game)
+    if player := filters.get("player"):
+        sessions_list = sessions_list.filter(player=player)
     if session_date := filters.get("date"):
         sessions_list = sessions_list.for_date(session_date)
     if status := filters.get("status"):
@@ -60,20 +41,59 @@ def sessions(request: HttpRequest) -> HttpResponse:
     sort = filters.get("sort") or "date"
     sessions_list = sessions_list.order_by(SESSION_ORDER[sort][1], "pk")
     page = Paginator(sessions_list, 5).get_page(request.GET.get("page"))
-    context = {
-        "sessions": page,
-        "games": Game.objects.order_by("title", "pk"),
-        "players": Player.objects.order_by("name", "pk"),
-        "q": filters.get("q", ""),
-        "selected_game": filters.get("game"),
-        "selected_player": filters.get("player"),
-        "selected_date": filters.get("date"),
-        "selected_status": filters.get("status"),
-        "status_options": GameSession.Status.choices,
-        "sort": sort,
-        "sort_options": SESSION_SORT_CHOICES,
-    }
-    return render(request, "gamesessions/session_list.html", context)
+    return render(request, "gamesessions/session_list.html", {
+        "sessions": page, "form": form,
+    })
+
+
+@require_http_methods(["GET", "HEAD", "POST"])
+def session_form(
+    request: HttpRequest, session_id: int | None = None,
+) -> HttpResponse:
+    """Создать сессию или изменить существующую активную запись."""
+    session = None
+    if session_id is not None:
+        session = get_object_or_404(
+            GameSession.objects.active(), pk=session_id,
+        )
+
+    form = GameSessionForm(
+        request.POST if request.method == "POST" else None,
+        instance=session,
+        initial={"session_date": timezone.localdate()}
+        if session is None else None,
+    )
+    if request.method == "POST" and form.is_valid():
+        try:
+            with transaction.atomic():
+                if session is None:
+                    session = form.save()
+                else:
+                    # Не изменяем запись, если её успели отменить.
+                    updated = GameSession.objects.active().filter(
+                        pk=session.pk
+                    ).update(**form.cleaned_data)
+                    if not updated:
+                        raise Http404
+        except IntegrityError:
+            if not form.has_conflict():
+                raise
+            form.add_error(None, SESSION_CONFLICT)
+        else:
+            return redirect("gamesessions:detail", session_id=session.pk)
+
+    return render(request, "gamesessions/session_form.html", {
+        "form": form, "session": session,
+    })
+
+
+@require_POST
+def session_cancel(request: HttpRequest, session_id: int) -> HttpResponse:
+    """Отменить активную сессию с сохранением её в истории."""
+    session = get_object_or_404(GameSession.objects.active(), pk=session_id)
+    if not session.cancel():
+        raise Http404
+    return redirect("gamesessions:detail", session_id=session.pk)
 
 
 def session_detail(request: HttpRequest, session_id: int) -> HttpResponse:
